@@ -2,7 +2,7 @@
 set -e
 
 LIB_ROOT=../..
-REPO="cypherstack/flutter_libepiccash"
+REPO="who-biz/flutter_libepiccash"
 BASE_URL="https://github.com/${REPO}/releases/download"
 
 TAG=$(git -C "$LIB_ROOT" describe --tags --exact-match HEAD 2>/dev/null) || {
