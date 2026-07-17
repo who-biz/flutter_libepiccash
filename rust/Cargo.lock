@@ -1163,9 +1163,9 @@ dependencies = [
  "clap 2.34.0",
  "crunchy",
  "ctrlc",
- "epic_core 4.0.3 (git+https://github.com/who-biz/epic.git?branch=randomx-api-fix)",
- "epic_keychain 4.0.3 (git+https://github.com/who-biz/epic.git?branch=randomx-api-fix)",
- "epic_util 4.0.3 (git+https://github.com/who-biz/epic.git?branch=randomx-api-fix)",
+ "epic_core",
+ "epic_keychain",
+ "epic_util",
  "epic_wallet_api",
  "epic_wallet_config",
  "epic_wallet_controller",
@@ -1203,17 +1203,17 @@ dependencies = [
 [[package]]
 name = "epic_api"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "bytes 1.11.0",
  "chrono",
  "easy-jsonrpc-mw",
  "epic_chain",
- "epic_core 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_core",
  "epic_p2p",
  "epic_pool",
  "epic_store",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_util",
  "futures 0.3.31",
  "http-body-util",
  "hyper 1.8.1",
@@ -1244,17 +1244,17 @@ dependencies = [
 [[package]]
 name = "epic_chain"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "bit-vec",
  "bitflags 2.10.0",
  "byteorder",
  "chrono",
  "croaring",
- "epic_core 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "epic_keychain 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_core",
+ "epic_keychain",
  "epic_store",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_util",
  "lazy_static",
  "log 0.4.29",
  "lru-cache",
@@ -1267,47 +1267,15 @@ dependencies = [
 [[package]]
 name = "epic_core"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "blake2-rfc",
  "byteorder",
  "chrono",
  "croaring",
  "enum_primitive",
- "epic_keychain 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "keccak-hash 0.11.0",
- "lazy_static",
- "log 0.4.29",
- "lru-cache",
- "md5",
- "num-bigint",
- "num-traits 0.2.19",
- "progpow",
- "rand 0.9.2",
- "randomx",
- "serde",
- "serde_derive",
- "serde_json",
- "sha2",
- "siphasher 1.0.1",
- "thiserror 2.0.17",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "epic_core"
-version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#cd0832fa15870c42c2bd1093c3d3eb450cfab064"
-dependencies = [
- "blake2-rfc",
- "byteorder",
- "chrono",
- "croaring",
- "enum_primitive",
- "epic_keychain 4.0.3 (git+https://github.com/who-biz/epic.git?branch=randomx-api-fix)",
- "epic_util 4.0.3 (git+https://github.com/who-biz/epic.git?branch=randomx-api-fix)",
+ "epic_keychain",
+ "epic_util",
  "keccak-hash 0.11.0",
  "lazy_static",
  "log 0.4.29",
@@ -1331,36 +1299,12 @@ dependencies = [
 [[package]]
 name = "epic_keychain"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "blake2-rfc",
  "byteorder",
  "digest 0.10.7",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "hmac",
- "lazy_static",
- "log 0.4.29",
- "pbkdf2",
- "rand 0.9.2",
- "ripemd",
- "serde",
- "serde_derive",
- "serde_json",
- "sha2",
- "thiserror 2.0.17",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "epic_keychain"
-version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#cd0832fa15870c42c2bd1093c3d3eb450cfab064"
-dependencies = [
- "blake2-rfc",
- "byteorder",
- "digest 0.10.7",
- "epic_util 4.0.3 (git+https://github.com/who-biz/epic.git?branch=randomx-api-fix)",
+ "epic_util",
  "hmac",
  "lazy_static",
  "log 0.4.29",
@@ -1379,7 +1323,7 @@ dependencies = [
 [[package]]
 name = "epic_p2p"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "bitflags 2.10.0",
  "blake2-rfc",
@@ -1389,10 +1333,10 @@ dependencies = [
  "ed25519-dalek",
  "enum_primitive",
  "epic_chain",
- "epic_core 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "epic_keychain 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_core",
+ "epic_keychain",
  "epic_store",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_util",
  "log 0.4.29",
  "lru-cache",
  "net2",
@@ -1411,14 +1355,14 @@ dependencies = [
 [[package]]
 name = "epic_pool"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "blake2-rfc",
  "chrono",
- "epic_core 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "epic_keychain 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_core",
+ "epic_keychain",
  "epic_store",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_util",
  "log 0.4.29",
  "rand 0.9.2",
  "serde",
@@ -1429,13 +1373,13 @@ dependencies = [
 [[package]]
 name = "epic_store"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "byteorder",
  "croaring",
  "env_logger 0.11.8",
- "epic_core 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_core",
+ "epic_util",
  "libc",
  "lmdb-zero",
  "log 0.4.29",
@@ -1449,30 +1393,7 @@ dependencies = [
 [[package]]
 name = "epic_util"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
-dependencies = [
- "anyhow",
- "backtrace",
- "base64 0.22.1",
- "byteorder",
- "chrono",
- "grin_secp256k1zkp",
- "lazy_static",
- "log 0.4.29",
- "log4rs",
- "parking_lot 0.6.4",
- "rand 0.9.2",
- "serde",
- "serde_derive",
- "walkdir",
- "zeroize",
- "zip",
-]
-
-[[package]]
-name = "epic_util"
-version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#cd0832fa15870c42c2bd1093c3d3eb450cfab064"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -1495,7 +1416,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_api"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#08433a0ad107fb2efe138926cc41874298c00ee6"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#d1ae0a5233ccce34d78359be05ab71b619f67597"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1518,7 +1439,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_config"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#08433a0ad107fb2efe138926cc41874298c00ee6"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#d1ae0a5233ccce34d78359be05ab71b619f67597"
 dependencies = [
  "dirs 6.0.0",
  "epic_wallet_util",
@@ -1532,7 +1453,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_controller"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#08433a0ad107fb2efe138926cc41874298c00ee6"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#d1ae0a5233ccce34d78359be05ab71b619f67597"
 dependencies = [
  "bytes 1.11.0",
  "chrono",
@@ -1565,7 +1486,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_impls"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#08433a0ad107fb2efe138926cc41874298c00ee6"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#d1ae0a5233ccce34d78359be05ab71b619f67597"
 dependencies = [
  "base64 0.22.1",
  "bitvec",
@@ -1608,7 +1529,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_libwallet"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#08433a0ad107fb2efe138926cc41874298c00ee6"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#d1ae0a5233ccce34d78359be05ab71b619f67597"
 dependencies = [
  "aead",
  "blake2-rfc",
@@ -1641,15 +1562,15 @@ dependencies = [
 [[package]]
 name = "epic_wallet_util"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#08433a0ad107fb2efe138926cc41874298c00ee6"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#d1ae0a5233ccce34d78359be05ab71b619f67597"
 dependencies = [
  "dirs 6.0.0",
  "epic_api",
  "epic_chain",
- "epic_core 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
- "epic_keychain 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_core",
+ "epic_keychain",
  "epic_store",
- "epic_util 4.0.3 (git+https://github.com/EpicCash/epic.git?branch=master)",
+ "epic_util",
  "rand 0.9.2",
  "rand_core 0.9.3",
  "serde",
@@ -2364,7 +2285,7 @@ dependencies = [
  "libc",
  "percent-encoding 2.3.2",
  "pin-project-lite 0.2.16",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "system-configuration",
  "tokio 1.48.0",
  "tower-service",
@@ -3829,7 +3750,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "thiserror 2.0.17",
  "tokio 1.48.0",
  "tracing",
@@ -3866,9 +3787,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6130,7 +6051,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

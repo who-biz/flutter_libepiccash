@@ -28,7 +28,7 @@ use crate::wallet::wallet_scan_outputs;
 use crate::wallet::tx_strategies;
 use crate::wallet::tx_create;
 use crate::wallet::txs_get;
-use crate::wallet::tx_cancel;
+use crate::wallet::epicbox_tx_cancel;
 use crate::wallet::tx_receive;
 use crate::wallet::tx_finalize;
 use crate::wallet::delete_wallet;

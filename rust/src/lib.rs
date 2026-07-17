@@ -9,7 +9,7 @@ use crate::ffi::rust_wallet_scan_outputs;
 use crate::ffi::rust_create_tx;
 use crate::ffi::rust_tx_send_http;
 use crate::ffi::rust_txs_get;
-use crate::ffi::rust_tx_cancel;
+use crate::ffi::rust_epicbox_tx_cancel;
 use crate::ffi::rust_get_chain_height;
 use crate::ffi::rust_epicbox_listener_start;
 use crate::ffi::_listener_cancel;
@@ -1032,7 +1032,7 @@ mod tests {
         println!("=== End rust_txs_get FFI test ===");
     }
 
-    /// Test the rust_tx_cancel FFI function.
+    /// Test the rust_epicbox_tx_cancel FFI function.
     /// This test verifies the transaction cancellation functionality.
     /// Note: Since we can't create real transactions without funds, we test with a fake UUID.
     #[test]
@@ -1072,7 +1072,7 @@ mod tests {
             println!("\nAttempting to cancel transaction: {}", fake_tx_id);
 
             let tx_id_ptr = str_to_cchar(fake_tx_id);
-            let cancel_ptr = rust_tx_cancel(
+            let cancel_ptr = rust_epicbox_tx_cancel(
                 str_to_cchar(wallet_data),
                 tx_id_ptr
             );
@@ -1106,7 +1106,7 @@ mod tests {
         }
 
         cleanup_test_dir(&test_dir);
-        println!("=== End rust_tx_cancel FFI test ===");
+        println!("=== End rust_epicbox_tx_cancel FFI test ===");
     }
 
     /// Test the rust_create_tx and rust_tx_send_http FFI functions.

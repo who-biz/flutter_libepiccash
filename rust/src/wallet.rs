@@ -210,7 +210,7 @@ pub fn tx_create(
 pub fn epicbox_tx_cancel(wallet: &Wallet, keychain_mask: Option<SecretKey>, tx_slate_id: Uuid) -> Result<String, Error> {
     let is_stopped = Arc::new(AtomicBool::new(false));
     let api = Owner::new(wallet.clone(), None, is_stopped.clone());
-    match  api.cancel_epicbox_tx(keychain_mask.as_ref(), None, None, None, Some(tx_slate_id)) {
+    match  api.epicbox_cancel_tx(keychain_mask.as_ref(), None, None, None, Some(tx_slate_id)) {
         Ok(_) => {
             Ok("cancelled".to_owned())
         },Err(e) => {
