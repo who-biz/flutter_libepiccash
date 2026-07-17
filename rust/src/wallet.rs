@@ -267,6 +267,7 @@ pub fn tx_cancel(
             },Err(e) => {
                 return Err(e);
             }
+        }
     } else {
         //TODO: (Biz) handle this case gracefully
         match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
