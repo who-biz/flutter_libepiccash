@@ -219,6 +219,46 @@ pub fn epicbox_tx_cancel(wallet: &Wallet, keychain_mask: Option<SecretKey>, tx_s
     }
 }
 
+/// Cancel a transaction via the epicbox relay.
+pub fn tx_cancel_epicbox(
+    wallet: &Wallet,
+    keychain_mask: Option<SecretKey>,
+    epicbox_config: &str,
+    tx_id: Option<u32>,
+    epicbox_msg_id: Option<String>,
+    tx_slate_id: Option<&str>,
+) -> Result<String, Error> {
+    let api = Owner::new(wallet.clone(), None);
+
+    let epicbox_conf = serde_json::from_str::<EpicboxConfig>(epicbox_config)
+        .map_err(|e| Error::from(EpicWalletControllerError::GenericError(
+            format!("Bad epicbox config: {}", e)
+        )))?;
+    api.set_epicbox_config(Some(epicbox_conf));
+
+    let slate_uuid = match tx_slate_id {
+        Some(s) => Some(
+            Uuid::parse_str(s).map_err(|e| Error::from(
+                EpicWalletControllerError::GenericError(format!("Bad slate id: {}", e))
+            ))?
+        ),
+        None => None,
+    };
+
+    api.cancel_tx_epicbox(
+        keychain_mask.as_ref(),
+        tx_id,
+        epicbox_msg_id,
+        slate_uuid,
+    ) {
+        Ok(_) => {
+            Ok("cancelled".to_owned())
+        },Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
 /// Receive a slate.
 ///
 /// The receiver opens an incoming slate, adds its output,

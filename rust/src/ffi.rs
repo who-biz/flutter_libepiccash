@@ -607,9 +607,11 @@ pub unsafe extern "C" fn rust_epicbox_tx_cancel(
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _epicbox_tx_cancel(
+    let result = match _tx_cancel_epicbox(
         wallet,
         sek_key,
+        None,
+        None,
         uuid,
     ) {
         Ok(cancelled) => {
