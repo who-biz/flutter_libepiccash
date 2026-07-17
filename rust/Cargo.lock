@@ -1267,7 +1267,7 @@ dependencies = [
 [[package]]
 name = "epic_core"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#cd0832fa15870c42c2bd1093c3d3eb450cfab064"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1299,7 +1299,7 @@ dependencies = [
 [[package]]
 name = "epic_keychain"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#cd0832fa15870c42c2bd1093c3d3eb450cfab064"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1393,7 +1393,7 @@ dependencies = [
 [[package]]
 name = "epic_util"
 version = "4.0.3"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#8585fc3e137f72fd49f27d0252a270be95c6ab9b"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#cd0832fa15870c42c2bd1093c3d3eb450cfab064"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -4054,7 +4054,7 @@ dependencies = [
 [[package]]
 name = "randomx"
 version = "0.2.0"
-source = "git+https://github.com/cypherstack/randomx-rust#5147a05e320a9fb68306ae08a1e94bc9cdd56a77"
+source = "git+https://github.com/who-biz/randomx-rust?branch=cs-fixes#e5174e7814551d161af4e64e4d7c2c2f1abb177a"
 dependencies = [
  "bindgen",
  "byteorder",
@@ -6666,18 +6666,3 @@ name = "zmij"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d6085d62852e35540689d1f97ad663e3971fc19cf5eceab364d62c646ea167"
-
-[[patch.unused]]
-name = "epic_core"
-version = "4.0.0"
-source = "git+https://github.com/cypherstack/epic.git?branch=fix%2Frandomx-v0.2.0-api#c592407af7000c0105cf83a0bc7ec7849b9356f4"
-
-[[patch.unused]]
-name = "epic_keychain"
-version = "4.0.0"
-source = "git+https://github.com/cypherstack/epic.git?branch=fix%2Frandomx-v0.2.0-api#c592407af7000c0105cf83a0bc7ec7849b9356f4"
-
-[[patch.unused]]
-name = "epic_util"
-version = "4.0.0"
-source = "git+https://github.com/cypherstack/epic.git?branch=fix%2Frandomx-v0.2.0-api#c592407af7000c0105cf83a0bc7ec7849b9356f4"

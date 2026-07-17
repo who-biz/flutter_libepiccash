@@ -71,9 +71,9 @@ crate-type = ["staticlib", "cdylib"]
 liblmdb-sys = { git = "https://github.com/i1skn/lmdb-rs" }
 
 [patch."https://github.com/EpicCash/randomx-rust.git"]
-randomx = { git = "https://github.com/cypherstack/randomx-rust" }
+randomx = { git = "https://github.com/who-biz/randomx-rust", branch = "cs-fixes" }
 
 [patch."https://github.com/EpicCash/epic.git"]
-epic_core = { git = "https://github.com/cypherstack/epic.git", branch = "fix/randomx-v0.2.0-api" }
-epic_util = { git = "https://github.com/cypherstack/epic.git", branch = "fix/randomx-v0.2.0-api" }
-epic_keychain = { git = "https://github.com/cypherstack/epic.git", branch = "fix/randomx-v0.2.0-api" }
+epic_core = { git = "https://github.com/who-biz/epic.git", branch = "randomx-api-fix" }
+epic_util = { git = "https://github.com/who-biz/epic.git", branch = "randomx-api-fix" }
+epic_keychain = { git = "https://github.com/who-biz/epic.git", branch = "randomx-api-fix" }
