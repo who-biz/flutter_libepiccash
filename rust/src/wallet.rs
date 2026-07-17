@@ -265,21 +265,20 @@ pub fn tx_cancel(
             Ok(_) => {
                 Ok("cancelled via epicbox relay".to_owned())
             },Err(e) => {
-                return Err(e);
+                Err(e)
             }
         }
     } else {
         //TODO: (Biz) handle this case gracefully
+        // it is a no-op right now for this case in core wallet
         match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
             Ok(_) => {
                 Ok("cancelled, without epicbox relay".to_owned())
             },Err(e) => {
-                return Err(e);
+                Err(e)
             }
         }
     }
-
-    Ok("cancelled".to_owned())
 }
 
 /// Receive a slate.
