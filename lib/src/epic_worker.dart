@@ -215,8 +215,8 @@ class EpicWorker {
           args['refreshFromNode'] as int,
         );
 
-      case EpicFuncName.cancelTransaction:
-        return epic_ffi.cancelTransaction(
+      case EpicFuncName.cancelEpicboxTransaction:
+        return epic_ffi.cancelEpicboxTransaction(
           args['wallet'] as String,
           args['transactionId'] as String,
         );

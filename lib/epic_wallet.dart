@@ -443,12 +443,12 @@ class EpicWallet {
     return slate.toRecord();
   }
 
-  Future<String> cancelTransaction({
+  Future<String> cancelEpicboxTransaction({
     required String transactionId,
   }) async {
     final result = await _worker.runTask<String>(
       EpicTask(
-        func: EpicFuncName.cancelTransaction,
+        func: EpicFuncName.cancelEpicboxTransaction,
         args: {
           "wallet": _getWalletHandle(),
           "transactionId": transactionId,

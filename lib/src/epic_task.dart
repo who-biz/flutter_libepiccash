@@ -7,7 +7,7 @@ enum EpicFuncName {
   scanOutputs,
   createTransaction,
   getTransactions,
-  cancelTransaction,
+  cancelEpicboxTransaction,
   getChainHeight,
   getAddressInfo,
   getTransactionFees,

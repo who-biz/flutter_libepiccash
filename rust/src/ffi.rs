@@ -591,7 +591,7 @@ fn _txs_get(
 
 /// Cancel a transaction via FFI.
 #[no_mangle]
-pub unsafe extern "C" fn rust_tx_cancel(
+pub unsafe extern "C" fn rust_epicbox_tx_cancel(
     wallet: *const c_char,
     tx_id: *const c_char,
 ) -> *const c_char {
@@ -607,7 +607,7 @@ pub unsafe extern "C" fn rust_tx_cancel(
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _tx_cancel(
+    let result = match _epicbox_tx_cancel(
         wallet,
         sek_key,
         uuid,
@@ -626,13 +626,13 @@ pub unsafe extern "C" fn rust_tx_cancel(
 }
 
 /// A helper to cancel a transaction.
-fn _tx_cancel(
+fn _epicbox_tx_cancel(
     wallet: &Wallet,
     keychain_mask: Option<SecretKey>,
     tx_id: Uuid,
 ) -> Result<*const c_char, Error>{
     let mut cancel_msg = "".to_string();
-    match  tx_cancel(wallet, keychain_mask, tx_id) {
+    match  epicbox_tx_cancel(wallet, keychain_mask, tx_id) {
         Ok(_) => {
             cancel_msg.push_str("");
         },Err(err) => {

@@ -74,9 +74,9 @@ typedef GetTransactions = Pointer<Utf8> Function(Pointer<Utf8>, Pointer<Int8>);
 typedef GetTransactionsFFI = Pointer<Utf8> Function(
     Pointer<Utf8>, Pointer<Int8>);
 
-typedef CancelTransaction = Pointer<Utf8> Function(
+typedef CancelEpicboxTransaction = Pointer<Utf8> Function(
     Pointer<Utf8>, Pointer<Utf8>);
-typedef CancelTransactionFFI = Pointer<Utf8> Function(
+typedef CancelEpicboxTransactionFFI = Pointer<Utf8> Function(
     Pointer<Utf8>, Pointer<Utf8>);
 
 typedef GetChainHeight = Pointer<Utf8> Function(Pointer<Utf8>);
@@ -397,17 +397,17 @@ Future<String> getTransactions(String wallet, int refreshFromNode) async {
   }
 }
 
-final CancelTransaction _cancelTransaction = epicCashNative
-    .lookup<NativeFunction<CancelTransactionFFI>>("rust_tx_cancel")
+final CancelEpicboxTransaction _cancelEpicboxTransaction = epicCashNative
+    .lookup<NativeFunction<CancelEpicboxTransactionFFI>>("rust_epicbox_tx_cancel")
     .asFunction();
 
-String cancelTransaction(String wallet, String transactionId) {
+String cancelEpicboxTransaction(String wallet, String transactionId) {
   Pointer<Utf8>? ptr;
   final walletPtr = wallet.toNativeUtf8();
   final transactionIdPtr = transactionId.toNativeUtf8();
 
   try {
-    ptr = _cancelTransaction(walletPtr, transactionIdPtr);
+    ptr = _cancelEpicboxTransaction(walletPtr, transactionIdPtr);
     return ptr.toDartString();
   } catch (_) {
     rethrow;

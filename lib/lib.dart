@@ -344,26 +344,26 @@ abstract class LibEpiccash {
     });
   }
 
-  static Future<String> _cancelTransactionWrapper(
+  static Future<String> _cancelEpicboxTransactionWrapper(
     ({
       String wallet,
       String transactionId,
     }) data,
   ) async {
-    return lib_epiccash.cancelTransaction(
+    return lib_epiccash.cancelEpicboxTransaction(
       data.wallet,
       data.transactionId,
     );
   }
 
   /// returns an empty String on success, error message on failure
-  static Future<String> cancelTransaction({
+  static Future<String> cancelEpicboxTransaction({
     required String wallet,
     required String transactionId,
   }) async {
     return await m.protect(() async {
       try {
-        final result = lib_epiccash.cancelTransaction(
+        final result = lib_epiccash.cancelEpicboxTransaction(
           wallet,
           transactionId,
         );
