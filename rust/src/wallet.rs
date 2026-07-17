@@ -207,7 +207,7 @@ pub fn tx_create(
 }
 
 /// Cancel a transaction by ID.
-pub fn epicbox_tx_cancel(wallet: &Wallet, keychain_mask: Option<SecretKey>, tx_slate_id: Uuid) -> Result<String, Error> {
+/*pub fn tx_cancel(wallet: &Wallet, keychain_mask: Option<SecretKey>, tx_slate_id: Uuid) -> Result<String, Error> {
     let is_stopped = Arc::new(AtomicBool::new(false));
     let api = Owner::new(wallet.clone(), None, is_stopped.clone());
     match  api.epicbox_cancel_tx(keychain_mask.as_ref(), None, None, None, Some(tx_slate_id)) {
@@ -217,46 +217,68 @@ pub fn epicbox_tx_cancel(wallet: &Wallet, keychain_mask: Option<SecretKey>, tx_s
             return Err(e);
         }
     }
-}
+}*/
 
-/// Cancel a transaction via the epicbox relay.
-pub fn tx_cancel_epicbox(
+/// Cancel a transaction, either via the Epicbox relay or locally.
+pub fn tx_cancel(
     wallet: &Wallet,
     keychain_mask: Option<SecretKey>,
-    epicbox_config: &str,
+    method_is_epicbox: bool,
+    epicbox_config: Option<&str>,
     tx_id: Option<u32>,
-    epicbox_msg_id: Option<String>,
     tx_slate_id: Option<&str>,
+    epicbox_msg_id: Option<String>,
 ) -> Result<String, Error> {
-    let api = Owner::new(wallet.clone(), None);
+    let is_stopped = Arc::new(AtomicBool::new(false));
+    let api = Owner::new(wallet.clone(), None, is_stopped.clone());
 
-    let epicbox_conf = serde_json::from_str::<EpicboxConfig>(epicbox_config)
-        .map_err(|e| Error::from(EpicWalletControllerError::GenericError(
-            format!("Bad epicbox config: {}", e)
-        )))?;
-    api.set_epicbox_config(Some(epicbox_conf));
+    // Parse the slate UUID before performing any relay or wallet work.
+    let slate_uuid = tx_slate_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(Uuid::parse_str)
+        .transpose()
+        .map_err(|e| Error::GenericError(format!("Bad slate id: {e}")))?;
 
-    let slate_uuid = match tx_slate_id {
-        Some(s) => Some(
-            Uuid::parse_str(s).map_err(|e| Error::from(
-                EpicWalletControllerError::GenericError(format!("Bad slate id: {}", e))
-            ))?
-        ),
-        None => None,
-    };
+    if method_is_epicbox {
+        // Relay cancellation requires the same Epicbox configuration used for send.
+        let conf_str = epicbox_config
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                Error::GenericError("Epicbox cancel requires an epicbox config".to_owned())
+            })?;
 
-    api.cancel_tx_epicbox(
-        keychain_mask.as_ref(),
-        tx_id,
-        epicbox_msg_id,
-        slate_uuid,
-    ) {
-        Ok(_) => {
-            Ok("cancelled".to_owned())
-        },Err(e) => {
-            return Err(e);
+        let epicbox_conf = serde_json::from_str::<EpicboxConfig>(conf_str)
+            .map_err(|e| Error::GenericError(format!("Bad epicbox config: {e}")))?;
+
+        api.set_epicbox_config(Some(epicbox_conf));
+
+        // Do not silently fall back to a local cancel. The relay must first
+        // confirm the cancellation before the wallet marks it cancelled.
+        match api.cancel_tx_epicbox(
+            keychain_mask.as_ref(),
+            tx_id,
+            epicbox_msg_id,
+            slate_uuid,
+        ) {
+            Ok(_) => {
+                Ok("cancelled via epicbox relay".to_owned())
+            },Err(e) => {
+                return Err(e);
+            }
+    } else {
+        //TODO: (Biz) handle this case gracefully
+        match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
+            Ok(_) => {
+                Ok("cancelled, without epicbox relay".to_owned())
+            },Err(e) => {
+                return Err(e);
+            }
         }
     }
+
+    Ok("cancelled".to_owned())
 }
 
 /// Receive a slate.

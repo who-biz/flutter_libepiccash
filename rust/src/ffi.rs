@@ -1,12 +1,9 @@
 use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_char;
 
-use uuid::Uuid;
-
 use epic_wallet_api::{self, Owner};
 use epic_wallet_config::EpicboxConfig;
 use epic_wallet_libwallet::Error;
-use epic_wallet_controller::Error as EpicWalletControllerError;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
@@ -28,7 +25,7 @@ use crate::wallet::wallet_scan_outputs;
 use crate::wallet::tx_strategies;
 use crate::wallet::tx_create;
 use crate::wallet::txs_get;
-use crate::wallet::epicbox_tx_cancel;
+use crate::wallet::tx_cancel;
 use crate::wallet::tx_receive;
 use crate::wallet::tx_finalize;
 use crate::wallet::delete_wallet;
@@ -589,62 +586,176 @@ fn _txs_get(
     Ok(p)
 }
 
-/// Cancel a transaction via FFI.
+/// Cancel a transaction through Epicbox or locally via FFI.
+///
+/// Optional string arguments use either a null pointer or an empty string for `None`.
 #[no_mangle]
 pub unsafe extern "C" fn rust_epicbox_tx_cancel(
     wallet: *const c_char,
+    method_is_epicbox: *const c_char,
+    epicbox_config: *const c_char,
     tx_id: *const c_char,
+    tx_slate_id: *const c_char,
+    epicbox_msg_id: *const c_char,
 ) -> *const c_char {
-    let wallet_ptr = CStr::from_ptr(wallet);
-    let tx_id = CStr::from_ptr(tx_id);
-    let tx_id = tx_id.to_str().unwrap();
-    let uuid = Uuid::parse_str(tx_id).map_err(|e| EpicWalletControllerError::GenericError(e.to_string())).unwrap();
+    let wallet_data = match required_c_string(wallet, "wallet") {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
 
-    let wallet_data = wallet_ptr.to_str().unwrap();
-    let tuple_wallet_data: (i64, Option<SecretKey>) = serde_json::from_str(wallet_data).unwrap();
+    let method_is_epicbox = match required_c_string(method_is_epicbox, "method_is_epicbox")
+        .and_then(|value| parse_bool_flag(&value, "method_is_epicbox"))
+    {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let epicbox_config = match optional_c_string(epicbox_config, "epicbox_config") {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let tx_id = match optional_c_string(tx_id, "tx_id")
+        .and_then(|value| parse_optional_u32(value, "tx_id"))
+    {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let tx_slate_id = match optional_c_string(tx_slate_id, "tx_slate_id") {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let epicbox_msg_id = match optional_c_string(epicbox_msg_id, "epicbox_msg_id") {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let tuple_wallet_data: (i64, Option<SecretKey>) = match serde_json::from_str(&wallet_data) {
+        Ok(value) => value,
+        Err(e) => {
+            return ffi_error_string(Error::GenericError(format!(
+                "Invalid wallet handle: {e}"
+            )));
+        }
+    };
+
     let wlt = tuple_wallet_data.0;
     let sek_key = tuple_wallet_data.1;
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _tx_cancel_epicbox(
+    match _epicbox_tx_cancel(
         wallet,
         sek_key,
-        None,
-        None,
-        uuid,
+        method_is_epicbox,
+        epicbox_config.as_deref(),
+        tx_id,
+        tx_slate_id.as_deref(),
+        epicbox_msg_id,
     ) {
-        Ok(cancelled) => {
-            cancelled
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(cancelled) => cancelled,
+        Err(e) => ffi_error_string(e),
+    }
 }
 
 /// A helper to cancel a transaction.
 fn _epicbox_tx_cancel(
     wallet: &Wallet,
     keychain_mask: Option<SecretKey>,
-    tx_id: Uuid,
-) -> Result<*const c_char, Error>{
-    let mut cancel_msg = "".to_string();
-    match  epicbox_tx_cancel(wallet, keychain_mask, tx_id) {
-        Ok(_) => {
-            cancel_msg.push_str("");
-        },Err(err) => {
-            return Err(err);
-        }
+    method_is_epicbox: bool,
+    epicbox_config: Option<&str>,
+    tx_id: Option<u32>,
+    tx_slate_id: Option<&str>,
+    epicbox_msg_id: Option<String>,
+) -> Result<*const c_char, Error> {
+    let cancel_msg = tx_cancel(
+        wallet,
+        keychain_mask,
+        method_is_epicbox,
+        epicbox_config,
+        tx_id,
+        tx_slate_id,
+        epicbox_msg_id,
+    )?;
+
+    ffi_string(cancel_msg)
+}
+
+unsafe fn required_c_string(
+    value: *const c_char,
+    argument_name: &str,
+) -> Result<String, Error> {
+    if value.is_null() {
+        return Err(Error::GenericError(format!(
+            "{argument_name} must not be null"
+        )));
     }
-    let s = CString::new(cancel_msg).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+
+    CStr::from_ptr(value)
+        .to_str()
+        .map(str::to_owned)
+        .map_err(|e| Error::GenericError(format!("Invalid {argument_name}: {e}")))
+}
+
+unsafe fn optional_c_string(
+    value: *const c_char,
+    argument_name: &str,
+) -> Result<Option<String>, Error> {
+    if value.is_null() {
+        return Ok(None);
+    }
+
+    let value = CStr::from_ptr(value)
+        .to_str()
+        .map_err(|e| Error::GenericError(format!("Invalid {argument_name}: {e}")))?
+        .trim();
+
+    if value.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(value.to_owned()))
+    }
+}
+
+fn parse_bool_flag(value: &str, argument_name: &str) -> Result<bool, Error> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "0" | "false" => Ok(false),
+        "1" | "true" => Ok(true),
+        _ => Err(Error::GenericError(format!(
+            "Invalid {argument_name}: expected 0, 1, false, or true"
+        ))),
+    }
+}
+
+fn parse_optional_u32(
+    value: Option<String>,
+    argument_name: &str,
+) -> Result<Option<u32>, Error> {
+    value
+        .map(|value| {
+            value.parse::<u32>().map_err(|e| {
+                Error::GenericError(format!("Invalid {argument_name}: {e}"))
+            })
+        })
+        .transpose()
+}
+
+fn ffi_string(value: String) -> Result<*const c_char, Error> {
+    let value = CString::new(value)
+        .map_err(|e| Error::GenericError(format!("FFI string contains a NUL byte: {e}")))?;
+    let ptr = value.as_ptr();
+    std::mem::forget(value);
+    Ok(ptr)
+}
+
+fn ffi_error_string(error: Error) -> *const c_char {
+    let value = CString::new(format!("Error {error}"))
+        .unwrap_or_else(|_| CString::new("Error returning FFI error").unwrap());
+    let ptr = value.as_ptr();
+    std::mem::forget(value);
+    ptr
 }
 
 /// Get chain height via FFI.
@@ -1286,3 +1397,4 @@ mod mnemonic_tests {
         }
     }
 }
+
