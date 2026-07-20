@@ -1,4 +1,4 @@
-import 'dart:ffi';
+\import 'dart:ffi';
 import 'dart:io' as io;
 
 import 'package:ffi/ffi.dart';
@@ -75,9 +75,21 @@ typedef GetTransactionsFFI = Pointer<Utf8> Function(
     Pointer<Utf8>, Pointer<Int8>);
 
 typedef CancelEpicboxTransaction = Pointer<Utf8> Function(
-    Pointer<Utf8>, Pointer<Utf8>);
+  Pointer<Utf8>, // wallet
+  Pointer<Int8>, // method_is_epicbox
+  Pointer<Utf8>, // epicbox_config
+  Pointer<Int8>, // tx_id
+  Pointer<Utf8>, // tx_slate_id
+  Pointer<Utf8>, // epicbox_msg_id
+);
 typedef CancelEpicboxTransactionFFI = Pointer<Utf8> Function(
-    Pointer<Utf8>, Pointer<Utf8>);
+  Pointer<Utf8>,
+  Pointer<Int8>,
+  Pointer<Utf8>,
+  Pointer<Int8>,
+  Pointer<Utf8>,
+  Pointer<Utf8>,
+);
 
 typedef GetChainHeight = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef GetChainHeightFFI = Pointer<Utf8> Function(Pointer<Utf8>);
@@ -398,22 +410,46 @@ Future<String> getTransactions(String wallet, int refreshFromNode) async {
 }
 
 final CancelEpicboxTransaction _cancelEpicboxTransaction = epicCashNative
-    .lookup<NativeFunction<CancelEpicboxTransactionFFI>>("rust_epicbox_tx_cancel")
+    .lookup<NativeFunction<CancelEpicboxTransactionFFI>>(
+        "rust_epicbox_tx_cancel")
     .asFunction();
 
-String cancelEpicboxTransaction(String wallet, String transactionId) {
+String cancelEpicboxTransaction(
+  String wallet,
+  bool methodIsEpicbox,
+  String? epicboxConfig,
+  int? txId,
+  String? txSlateId,
+  String? epicboxMsgId,
+) {
   Pointer<Utf8>? ptr;
   final walletPtr = wallet.toNativeUtf8();
-  final transactionIdPtr = transactionId.toNativeUtf8();
+  final methodIsEpicboxPtr =
+      (methodIsEpicbox ? '1' : '0').toNativeUtf8().cast<Int8>();
+  final epicboxConfigPtr = (epicboxConfig ?? '').toNativeUtf8();
+  final txIdPtr = (txId?.toString() ?? '').toNativeUtf8().cast<Int8>();
+  final txSlateIdPtr = (txSlateId ?? '').toNativeUtf8();
+  final epicboxMsgIdPtr = (epicboxMsgId ?? '').toNativeUtf8();
 
   try {
-    ptr = _cancelEpicboxTransaction(walletPtr, transactionIdPtr);
+    ptr = _cancelEpicboxTransaction(
+      walletPtr,
+      methodIsEpicboxPtr,
+      epicboxConfigPtr,
+      txIdPtr,
+      txSlateIdPtr,
+      epicboxMsgIdPtr,
+    );
     return ptr.toDartString();
   } catch (_) {
     rethrow;
   } finally {
     malloc.free(walletPtr);
-    malloc.free(transactionIdPtr);
+    malloc.free(methodIsEpicboxPtr);
+    malloc.free(epicboxConfigPtr);
+    malloc.free(txIdPtr);
+    malloc.free(txSlateIdPtr);
+    malloc.free(epicboxMsgIdPtr);
     if (ptr != null) {
       malloc.free(ptr);
     }

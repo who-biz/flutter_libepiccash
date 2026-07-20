@@ -444,15 +444,19 @@ class EpicWallet {
   }
 
   Future<String> cancelEpicboxTransaction({
-    required String transactionId,
+    required bool methodIsEpicbox,
+    int? txId,
+    String? txSlateId,
+    String? epicboxMsgId,
   }) async {
     final result = await _worker.runTask<String>(
-      EpicTask(
-        func: EpicFuncName.cancelEpicboxTransaction,
-        args: {
-          "wallet": _getWalletHandle(),
-          "transactionId": transactionId,
-        },
+      EpicTask.cancelEpicboxTransaction(
+        wallet: _getWalletHandle(),
+        methodIsEpicbox: methodIsEpicbox,
+        epicboxConfig: methodIsEpicbox ? _epicboxConfig : null,
+        txId: txId,
+        txSlateId: txSlateId,
+        epicboxMsgId: epicboxMsgId,
       ),
     );
 

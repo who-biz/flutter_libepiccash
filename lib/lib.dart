@@ -347,25 +347,41 @@ abstract class LibEpiccash {
   static Future<String> _cancelEpicboxTransactionWrapper(
     ({
       String wallet,
-      String transactionId,
+      bool methodIsEpicbox,
+      String? epicboxConfig,
+      int? txId,
+      String? txSlateId,
+      String? epicboxMsgId,
     }) data,
   ) async {
     return lib_epiccash.cancelEpicboxTransaction(
       data.wallet,
-      data.transactionId,
+      data.methodIsEpicbox,
+      data.epicboxConfig,
+      data.txId,
+      data.txSlateId,
+      data.epicboxMsgId,
     );
   }
 
-  /// returns an empty String on success, error message on failure
+  /// Cancels a transaction through Epicbox or locally.
   static Future<String> cancelEpicboxTransaction({
     required String wallet,
-    required String transactionId,
+    required bool methodIsEpicbox,
+    String? epicboxConfig,
+    int? txId,
+    String? txSlateId,
+    String? epicboxMsgId,
   }) async {
     return await m.protect(() async {
       try {
         final result = lib_epiccash.cancelEpicboxTransaction(
           wallet,
-          transactionId,
+          methodIsEpicbox,
+          epicboxConfig,
+          txId,
+          txSlateId,
+          epicboxMsgId,
         );
 
         _checkForError(result);

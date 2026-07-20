@@ -218,7 +218,11 @@ class EpicWorker {
       case EpicFuncName.cancelEpicboxTransaction:
         return epic_ffi.cancelEpicboxTransaction(
           args['wallet'] as String,
-          args['transactionId'] as String,
+          args['methodIsEpicbox'] as bool,
+          args['epicboxConfig'] as String?,
+          args['txId'] as int?,
+          args['txSlateId'] as String?,
+          args['epicboxMsgId'] as String?,
         );
 
       case EpicFuncName.getChainHeight:
@@ -286,7 +290,7 @@ class EpicWorker {
 
       case EpicFuncName.deleteWallet:
         return epic_ffi.deleteWallet(
-          "",  // wallet parameter is not used by the FFI function
+          "", // wallet parameter is not used by the FFI function
           args['config'] as String,
         );
     }

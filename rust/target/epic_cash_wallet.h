@@ -62,8 +62,12 @@ const char *rust_txs_get(const char *wallet, const char *refresh_from_node);
 /**
  * Cancel a transaction via FFI.
  */
-const char *rust_epicbox_tx_cancel(const char *wallet, const char *tx_id);
-
+const char *rust_epicbox_tx_cancel(const char *wallet,
+                                   const char *method_is_epicbox,
+                                   const char *epicbox_config,
+                                   const char *tx_id,
+                                   const char *tx_slate_id,
+                                   const char *epicbox_msg_id);
 /**
  * Get chain height via FFI.
  */

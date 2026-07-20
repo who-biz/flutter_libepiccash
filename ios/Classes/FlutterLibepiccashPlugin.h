@@ -86,7 +86,14 @@ const char *rust_recover_from_mnemonic(const char *config,
 /**
  * Cancel a transaction via FFI.
  */
-const char *rust_tx_cancel(const char *wallet, const char *tx_id);
+const char *rust_epicbox_tx_cancel(
+    const char *wallet,
+    const char *method_is_epicbox,
+    const char *epicbox_config,
+    const char *tx_id,
+    const char *tx_slate_id,
+    const char *epicbox_msg_id
+);
 
 /**
  * Finalize a slate via FFI.

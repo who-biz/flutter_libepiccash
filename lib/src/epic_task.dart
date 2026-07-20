@@ -34,6 +34,27 @@ class EpicTask {
     this.id,
   });
 
+  factory EpicTask.cancelEpicboxTransaction({
+    required String wallet,
+    required bool methodIsEpicbox,
+    String? epicboxConfig,
+    int? txId,
+    String? txSlateId,
+    String? epicboxMsgId,
+  }) {
+    return EpicTask(
+      func: EpicFuncName.cancelEpicboxTransaction,
+      args: {
+        'wallet': wallet,
+        'methodIsEpicbox': methodIsEpicbox,
+        'epicboxConfig': epicboxConfig,
+        'txId': txId,
+        'txSlateId': txSlateId,
+        'epicboxMsgId': epicboxMsgId,
+      },
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'func': func.name,
