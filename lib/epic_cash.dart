@@ -1,4 +1,4 @@
-\import 'dart:ffi';
+import 'dart:ffi';
 import 'dart:io' as io;
 
 import 'package:ffi/ffi.dart';
