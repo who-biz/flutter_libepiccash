@@ -254,8 +254,6 @@ pub fn tx_cancel(
 
         api.set_epicbox_config(Some(epicbox_conf));
 
-        // Do not silently fall back to a local cancel. The relay must first
-        // confirm the cancellation before the wallet marks it cancelled.
         match api.cancel_tx_epicbox(
             keychain_mask.as_ref(),
             tx_id,
@@ -264,8 +262,14 @@ pub fn tx_cancel(
         ) {
             Ok(_) => {
                 Ok("cancelled via epicbox relay".to_owned())
-            },Err(e) => {
-                Err(e)
+            },Err(_) => {
+                match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
+                    Ok(_) => {
+                        Ok("cancelled, without epicbox relay".to_owned())
+                    },Err(e) => { 
+                        Err(e)
+                    }
+                }
             }
         }
     } else {
