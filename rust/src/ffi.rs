@@ -493,8 +493,8 @@ fn _create_tx(
 ) -> Result<*const c_char, Error> {
     let mut message = String::from("");
     match tx_create(
-        &wallet,
-        keychain_mask.clone(),
+        wallet,
+        keychain_mask,
         amount,
         minimum_confirmations,
         false,
@@ -503,14 +503,11 @@ fn _create_tx(
         note,
         Some(return_slate),
     ) {
-        Ok(slate) => {
-            let empty_json = format!(r#"{{"slate_msg": ""}}"#);
-            let create_response = (&slate, &empty_json);
-            let str_create_response = serde_json::to_string(&create_response).unwrap();
-            message.push_str(&str_create_response);
-        },
+        Ok(response_json) => {
+            message.push_str(&response_json);
+        }
+
         Err(e) => {
-            message.push_str(&e.to_string());
             return Err(e);
         }
     }
