@@ -680,7 +680,7 @@ fn _epicbox_tx_cancel(
         epicbox_msg_id,
     )?;
 
-    ffi_string(cancel_msg)
+    ffi_string(String::new())
 }
 
 unsafe fn required_c_string(
