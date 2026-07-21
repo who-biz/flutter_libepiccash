@@ -261,8 +261,9 @@ pub fn tx_cancel(
             slate_uuid,
         ) {
             Ok(_) => {
-                Ok("cancelled via epicbox relay".to_owned())
+                Ok("cancelled".to_owned())
             },Err(_) => {
+                //TODO: no longer need this
                 match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
                     Ok(_) => {
                         Ok("cancelled, without epicbox relay".to_owned())

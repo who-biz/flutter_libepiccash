@@ -1416,7 +1416,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_api"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#07e0f938faa8626848f0b17b7df6eb15a3671aee"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#840e70863e6d3fb39554e59b1269fcbc3abb3a93"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1439,7 +1439,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_config"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#07e0f938faa8626848f0b17b7df6eb15a3671aee"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#840e70863e6d3fb39554e59b1269fcbc3abb3a93"
 dependencies = [
  "dirs 6.0.0",
  "epic_wallet_util",
@@ -1453,7 +1453,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_controller"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#07e0f938faa8626848f0b17b7df6eb15a3671aee"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#840e70863e6d3fb39554e59b1269fcbc3abb3a93"
 dependencies = [
  "bytes 1.11.0",
  "chrono",
@@ -1486,7 +1486,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_impls"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#07e0f938faa8626848f0b17b7df6eb15a3671aee"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#840e70863e6d3fb39554e59b1269fcbc3abb3a93"
 dependencies = [
  "base64 0.22.1",
  "bitvec",
@@ -1529,7 +1529,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_libwallet"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#07e0f938faa8626848f0b17b7df6eb15a3671aee"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#840e70863e6d3fb39554e59b1269fcbc3abb3a93"
 dependencies = [
  "aead",
  "blake2-rfc",
@@ -1562,7 +1562,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_util"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#07e0f938faa8626848f0b17b7df6eb15a3671aee"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#840e70863e6d3fb39554e59b1269fcbc3abb3a93"
 dependencies = [
  "dirs 6.0.0",
  "epic_api",
@@ -2285,7 +2285,7 @@ dependencies = [
  "libc",
  "percent-encoding 2.3.2",
  "pin-project-lite 0.2.16",
- "socket2 0.6.1",
+ "socket2 0.5.10",
  "system-configuration",
  "tokio 1.48.0",
  "tower-service",
@@ -3750,7 +3750,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.6.1",
+ "socket2 0.5.10",
  "thiserror 2.0.17",
  "tokio 1.48.0",
  "tracing",
@@ -3787,7 +3787,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.6.1",
+ "socket2 0.5.10",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -6051,7 +6051,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
