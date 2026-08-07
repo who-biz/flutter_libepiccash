@@ -273,7 +273,31 @@ final EpicboxListenerStart _epicboxListenerStart = epicCashNative
         "rust_epicbox_listener_start")
     .asFunction();
 
-Pointer<Void> epicboxListenerStart(String wallet, String epicboxConfig) {
+Pointer<Void> epicboxListenerStart(
+  String wallet,
+  String epicboxConfig,
+) {
+  final walletPtr = wallet.toNativeUtf8();
+  final epicboxConfigPtr = epicboxConfig.toNativeUtf8();
+
+  try {
+    final result =
+        _epicboxListenerStart(walletPtr, epicboxConfigPtr);
+
+    if (result == nullptr) {
+      throw StateError(
+        'rust_epicbox_listener_start returned null',
+      );
+    }
+
+    return result;
+  } finally {
+    malloc.free(walletPtr);
+    malloc.free(epicboxConfigPtr);
+  }
+}
+
+/*Pointer<Void> epicboxListenerStart(String wallet, String epicboxConfig) {
   final walletPtr = wallet.toNativeUtf8();
   final epicboxConfigPtr = epicboxConfig.toNativeUtf8();
 
@@ -285,13 +309,18 @@ Pointer<Void> epicboxListenerStart(String wallet, String epicboxConfig) {
     malloc.free(walletPtr);
     malloc.free(epicboxConfigPtr);
   }
-}
+}*/
 
 final EpicboxListenerStop _epicboxListenerStop = epicCashNative
     .lookup<NativeFunction<EpicboxListenerStopFFI>>("_listener_cancel")
     .asFunction();
 
 bool epicboxListenerStop(Pointer<Void> handler) {
+
+  if (handler == null || handler == nullptr) {
+    return false;
+  }
+  
   Pointer<Utf8>? ptr;
 
   try {
@@ -313,7 +342,7 @@ final EpicboxListenerIsRunning _epicboxListenerIsRunning = epicCashNative
 /// Check if the epicbox listener is still running.
 /// Returns true if the listener is alive, false if it has stopped or handler is null.
 bool epicboxListenerIsRunning(Pointer<Void>? handler) {
-  if (handler == null) {
+  if (handler == null || handler == nullptr) {
     return false;
   }
 

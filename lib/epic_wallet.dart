@@ -57,9 +57,19 @@ class EpicWallet {
   bool isClosed() => _walletHandle == null;
 
   Future<void> startListener() async {
-    await stopListener();
+    if (_listenerPointerAddress != null) {
+      final running = await isEpicboxListenerRunning();
 
-    _listenerPointerAddress = await _worker.runTask<int>(
+      if (running) {
+        // Do not replace a healthy listener.
+        return;
+      }
+
+      // isEpicboxListenerRunning() clears _listenerPointerAddress
+      // when the Rust task has finished.
+    }
+
+    final pointerAddress = await _worker.runTask<int>(
       EpicTask(
         func: EpicFuncName.startEpicboxListener,
         args: {
@@ -68,6 +78,14 @@ class EpicWallet {
         },
       ),
     );
+
+    if (pointerAddress == 0) {
+      throw EpicWalletException(
+        'Failed to start Epicbox listener: native listener returned null',
+      );
+    }
+
+    _listenerPointerAddress = pointerAddress;
   }
 
   Future<void> stopListener() async {
@@ -400,6 +418,14 @@ class EpicWallet {
     String note = "",
     bool returnSlate = false,
   }) async {
+    // Epicbox transactions require the persistent listener so that
+    // the wallet can receive the receiver's response.
+    //
+    // Slate/slatepack mode does not use Epicbox.
+    if (!returnSlate) {
+      await startListener();
+    }
+
     final result = await _worker.runTask<String>(
       EpicTask(
         func: EpicFuncName.createTransaction,
