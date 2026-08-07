@@ -139,9 +139,17 @@ pub fn tx_create(
 ) -> Result<String, Error> {
     let return_slate = return_slate.unwrap_or(false);
 
-    let is_stopped = Arc::new(AtomicBool::new(false));
-    let owner_api = Owner::new(wallet.clone(), None, is_stopped.clone());
+    //let is_stopped = Arc::new(AtomicBool::new(false));
+    //let owner_api = Owner::new(wallet.clone(), None, is_stopped.clone());
 
+    //TODO: (Biz) ensure the change below, compared to now-commented lines above
+    // makes sense. seems argument misalignment
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    let owner_api = Owner::new(
+        wallet.clone(),
+        None,
+        is_node_synced.clone(),
+    );
     // Only set epicbox config and send args if we want the wallet to relay via Epicbox.
     let send_args = if return_slate {
         None
@@ -170,7 +178,11 @@ pub fn tx_create(
     };
 
     // Create the transaction.
-    let slate: Slate = owner_api.init_send_tx(keychain_mask.as_ref(), args, is_stopped.clone())?;
+    //let slate: Slate = owner_api.init_send_tx(keychain_mask.as_ref(), args, is_stopped.clone())?;
+
+    // TODO: (Biz) associated change to TODO above
+    let slate: Slate = owner_api.init_send_tx(keychain_mask.as_ref(), args, is_node_synced.clone())?;
+
 
     // For slate mode, we need to lock the outputs immediately.
     // This creates the TxLogEntry which is required for finalization.
