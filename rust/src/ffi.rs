@@ -32,12 +32,15 @@ use crate::wallet::delete_wallet;
 use crate::wallet::tx_send_http;
 use crate::wallet::get_chain_height;
 
-use crate::listener::Listener;
-use crate::listener::listener_spawn;
-use crate::listener::listener_cancel;
-use crate::listener::listener_cancelled;
-use crate::listener::listener_handle_destroy;
-use crate::listener::listener_poll;
+use crate::listener::{
+    Listener,
+    listener_cancel,
+    listener_handle_destroy,
+    listener_poll,
+    listener_result_destroy,
+    listener_spawn,
+};
+
 use crate::init_logger;
 
 use ffi_helpers::task::TaskHandle;
@@ -586,6 +589,14 @@ fn _txs_get(
     Ok(p)
 }
 
+
+fn is_epicbox_tx_id(value: &str) -> bool {
+    value.len() == 32
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
 /// Cancel a transaction through Epicbox or locally via FFI.
 ///
 /// Optional string arguments use either a null pointer or an empty string for `None`.
@@ -596,7 +607,7 @@ pub unsafe extern "C" fn rust_epicbox_tx_cancel(
     epicbox_config: *const c_char,
     tx_id: *const c_char,
     tx_slate_id: *const c_char,
-    epicbox_msg_id: *const c_char,
+    epicbox_tx_id: *const c_char,
 ) -> *const c_char {
     let wallet_data = match required_c_string(wallet, "wallet") {
         Ok(value) => value,
@@ -627,10 +638,16 @@ pub unsafe extern "C" fn rust_epicbox_tx_cancel(
         Err(e) => return ffi_error_string(e),
     };
 
-    let epicbox_msg_id = match optional_c_string(epicbox_msg_id, "epicbox_msg_id") {
+    let epicbox_tx_id = match optional_c_string(epicbox_tx_id, "epicbox_tx_id") {
         Ok(value) => value,
         Err(e) => return ffi_error_string(e),
     };
+
+    if !is_epicbox_tx_id(epicbox_tx_id) {
+        return ffi_error_string(Error::GenericError(format!(
+            "Invalid epicbox_tx_id supplied for epicbox cancellation: {epicbox_tx_id}"
+        )));
+    }
 
     let tuple_wallet_data: (i64, Option<SecretKey>) = match serde_json::from_str(&wallet_data) {
         Ok(value) => value,
@@ -653,7 +670,7 @@ pub unsafe extern "C" fn rust_epicbox_tx_cancel(
         epicbox_config.as_deref(),
         tx_id,
         tx_slate_id.as_deref(),
-        epicbox_msg_id,
+        epicbox_tx_id,
     ) {
         Ok(cancelled) => cancelled,
         Err(e) => ffi_error_string(e),
@@ -668,7 +685,7 @@ fn _epicbox_tx_cancel(
     epicbox_config: Option<&str>,
     tx_id: Option<u32>,
     tx_slate_id: Option<&str>,
-    epicbox_msg_id: Option<String>,
+    epicbox_tx_id: Option<String>,
 ) -> Result<*const c_char, Error> {
     let cancel_msg = tx_cancel(
         wallet,
@@ -677,7 +694,7 @@ fn _epicbox_tx_cancel(
         epicbox_config,
         tx_id,
         tx_slate_id,
-        epicbox_msg_id,
+        epicbox_tx_id,
     )?;
 
     ffi_string(String::new())
@@ -1088,78 +1105,78 @@ pub unsafe extern "C" fn rust_epicbox_listener_start(
     wallet: *const c_char,
     epicbox_config: *const c_char,
 ) -> *mut c_void {
-    let wallet_ptr = CStr::from_ptr(wallet);
-    let epicbox_config = CStr::from_ptr(epicbox_config);
-    let epicbox_config = epicbox_config.to_str().unwrap();
+    if wallet.is_null() || epicbox_config.is_null() {
+        return std::ptr::null_mut();
+    }
 
-    let wallet_data = wallet_ptr.to_str().unwrap();
-    // let tuple_wallet_data: (i64, Option<SecretKey>) = serde_json::from_str(wallet_data).unwrap();
-    let listen = Listener {
-        wallet_ptr_str: wallet_data.to_string(),
-        epicbox_config: epicbox_config.parse().unwrap()
+    let wallet_data = match CStr::from_ptr(wallet).to_str() {
+        Ok(value) => value,
+        Err(_) => return std::ptr::null_mut(),
     };
 
-    let handler = listener_spawn(&listen);
-    let handler_value = handler.read();
-    let boxed_handler = Box::new(handler_value);
-    Box::into_raw(boxed_handler) as *mut _
+    let epicbox_config = match CStr::from_ptr(epicbox_config).to_str() {
+        Ok(value) => value,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let listener = Listener {
+        wallet_ptr_str: wallet_data.to_owned(),
+        epicbox_config: epicbox_config.to_owned(),
+    };
+
+    listener_spawn(&listener).cast::<c_void>()
 }
 
-/// Cancel and destroy a listener via FFI.
-/// This cancels the listener task and frees the associated handle memory.
+
+/// Request cancellation without blocking the FFI caller.
+///
+/// The current Listener task does not yet propagate cancellation into the
+/// blocking EpicboxListenChannel::listen() call, so listener_wait() must not
+/// be used here.
 #[no_mangle]
-pub unsafe extern "C" fn _listener_cancel(handler: *mut c_void) -> *const c_char {
-    // Validate handler is not null
+pub unsafe extern "C" fn _listener_cancel(
+    handler: *mut c_void,
+) -> *const c_char {
     if handler.is_null() {
-        let error_msg = CString::new("false").unwrap();
-        let ptr = error_msg.as_ptr();
-        std::mem::forget(error_msg);
-        return ptr;
+        return ffi_string("false".to_owned())
+            .unwrap_or_else(ffi_error_string);
     }
 
-    let handle = handler as *mut TaskHandle<usize>;
+    let handle = handler.cast::<TaskHandle<usize>>();
 
-    // Request cancellation of the listener task
     listener_cancel(handle);
-    let was_cancelled = listener_cancelled(handle);
 
-    // Destroy the handle to free resources
-    // Note: listener_handle_destroy takes ownership and frees the memory,
-    // so we must NOT also call Box::from_raw (that would be a double-free)
+    // Frees the FFI TaskHandle without waiting indefinitely for the
+    // blocking websocket listener.
     listener_handle_destroy(handle);
 
-    let error_msg = format!("{}", was_cancelled);
-    let error_msg_ptr = CString::new(error_msg).unwrap();
-    let ptr = error_msg_ptr.as_ptr();
-    std::mem::forget(error_msg_ptr);
-    ptr
+    ffi_string("true".to_owned())
+        .unwrap_or_else(ffi_error_string)
 }
 
-/// Check if the listener is still running via FFI.
-/// Returns "true" if the listener is alive (task not completed), "false" if it has stopped.
-/// Returns "false" if the handler is null.
+/// Check whether the listener task has completed.
 #[no_mangle]
-pub unsafe extern "C" fn _listener_is_running(handler: *mut c_void) -> *const c_char {
-    // Validate handler is not null
+pub unsafe extern "C" fn _listener_is_running(
+    handler: *mut c_void,
+) -> *const c_char {
     if handler.is_null() {
-        let result = CString::new("false").unwrap();
-        let ptr = result.as_ptr();
-        std::mem::forget(result);
-        return ptr;
+        return ffi_string("false".to_owned())
+            .unwrap_or_else(ffi_error_string);
     }
 
-    let handle = handler as *mut TaskHandle<usize>;
+    let handle = handler.cast::<TaskHandle<usize>>();
+    let result = listener_poll(handle);
 
-    // Poll the task to check if it's still running
-    // listener_poll returns a null pointer if the task is still running,
-    // or a non-null pointer to the result if the task has completed
-    let poll_result = listener_poll(handle);
-    let is_running = poll_result.is_null();
+    if result.is_null() {
+        return ffi_string("true".to_owned())
+            .unwrap_or_else(ffi_error_string);
+    }
 
-    let result = CString::new(if is_running { "true" } else { "false" }).unwrap();
-    let ptr = result.as_ptr();
-    std::mem::forget(result);
-    ptr
+    listener_result_destroy(result);
+    listener_handle_destroy(handle);
+
+    ffi_string("false".to_owned())
+        .unwrap_or_else(ffi_error_string)
 }
 
 /// Receive a slate via FFI.

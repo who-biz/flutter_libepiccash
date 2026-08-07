@@ -697,19 +697,35 @@ abstract class LibEpiccash {
     required String wallet,
     required String epicboxConfig,
   }) {
-    // Stop any existing listener for this wallet before starting a new one
-    stopEpicboxListener(walletId: walletId);
+    final existingPointer = ListenerManager.getPointer(walletId);
+
+    if (existingPointer != null) {
+      final running =
+          lib_epiccash.epicboxListenerIsRunning(existingPointer);
+
+      if (running) {
+        // Keep the currently connected listener.
+        return;
+      }
+
+      // The Rust health check has consumed the completed handle.
+      ListenerManager.removePointer(walletId);
+    }
 
     try {
-      final pointer = lib_epiccash.epicboxListenerStart(wallet, epicboxConfig);
+      final pointer =
+          lib_epiccash.epicboxListenerStart(wallet, epicboxConfig);
+
+      if (pointer == nullptr) {
+        throw Exception("Failed to start Epicbox listener");
+      }
+
       ListenerManager.setPointer(walletId, pointer);
     } catch (e) {
-      // Ensure pointer is removed if start fails
       ListenerManager.removePointer(walletId);
-      throw ("Error starting wallet listener ${e.toString()}");
+      throw Exception("Error starting wallet listener: $e");
     }
   }
-
   /// Stop the epicbox listener for a specific wallet.
   ///
   /// [walletId] - The wallet identifier used when starting the listener
