@@ -503,11 +503,14 @@ fn _create_tx(
         note,
         Some(return_slate),
     ) {
-        Ok(response_json) => {
-            message.push_str(&response_json);
-        }
-
+        Ok(slate) => {
+            let empty_json = format!(r#"{{"slate_msg": ""}}"#);
+            let create_response = (&slate, &empty_json);
+            let str_create_response = serde_json::to_string(&create_response).unwrap();
+            message.push_str(&str_create_response);
+        },
         Err(e) => {
+            message.push_str(&e.to_string());
             return Err(e);
         }
     }
