@@ -638,18 +638,19 @@ pub unsafe extern "C" fn rust_epicbox_tx_cancel(
         Err(e) => return ffi_error_string(e),
     };
 
-    let epicbox_tx_id = match optional_c_string(epicbox_tx_id, "epicbox_tx_id") {
-        Ok(value) => { 
-            if !is_epicbox_tx_id(value.as_ref().unwrap()) {
-                return ffi_error_string(Error::GenericError(format!(
-                    "Invalid epicbox_tx_id supplied for epicbox cancellation"
-                )))
-            } else {
-                value
-            }
-        },
-        Err(e) => return ffi_error_string(e),
-    };
+    let epicbox_tx_id =
+        match optional_c_string(epicbox_tx_id, "epicbox_tx_id") {
+            Ok(value) => value,
+            Err(e) => return ffi_error_string(e),
+        };
+
+    if let Some(ref id) = epicbox_tx_id {
+        if !is_epicbox_tx_id(id) {
+            return ffi_error_string(Error::GenericError(
+                "Invalid epicbox_tx_id supplied for epicbox cancellation".to_owned(),
+            ));
+        }
+    }
 
     let tuple_wallet_data: (i64, Option<SecretKey>) = match serde_json::from_str(&wallet_data) {
         Ok(value) => value,
