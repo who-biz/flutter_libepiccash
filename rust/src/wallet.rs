@@ -342,9 +342,9 @@ pub fn tx_cancel(
 
                 match api.cancel_tx_epicbox(
                     keychain_mask.as_ref(),
-                    tx_id,
+                    None,
                     Some(epicbox_tx_id),
-                    slate_uuid,
+                    None,
                 ) {
                     Ok(_) => {
                         Ok("cancelled".to_owned())
