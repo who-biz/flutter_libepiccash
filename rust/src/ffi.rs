@@ -248,29 +248,18 @@ fn _wallet_balances(
         ">> _wallet_balances called with refresh={refresh}, min_confirmations={min_confirmations}"
     );
 
-    let mut wallet_info_str = String::new();
-
-    // Call get_wallet_info under the hood.
-    match get_wallet_info(wallet, keychain_mask, refresh, min_confirmations) {
+    let wallet_info_str = match get_wallet_info(wallet, keychain_mask, refresh, min_confirmations) {
         Ok(info) => {
-            // Print intermediate data
             println!(">> _wallet_balances got info: {:?}", info);
-
-            // Convert to JSON.
-            let str_wallet_info = serde_json::to_string(&info).unwrap();
-            wallet_info_str.push_str(&str_wallet_info);
+            serde_json::to_string(&info)?
         }
         Err(e) => {
             println!(">> _wallet_balances encountered error: {e}");
             return Err(e);
         }
-    }
+    };
 
-    // Convert final string result into a *const c_char.
-    let s = CString::new(wallet_info_str).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Hand off responsibility to caller.
-    Ok(p)
+    ffi_string(wallet_info_str)
 }
 
 /// Recover a wallet from a mnemonic via FFI.
@@ -394,31 +383,15 @@ fn _wallet_scan_outputs(
         ">> _wallet_scan_outputs called with start_height={start_height}, number_of_blocks={number_of_blocks}"
     );
 
-    let mut scan_result = String::new();
-
     // Call wallet_scan_outputs under the hood.
-    match wallet_scan_outputs(
+    let scan_result = wallet_scan_outputs(
         wallet,
         keychain_mask,
         Some(start_height),
         Some(number_of_blocks)
-    ) {
-        Ok(scan_str) => {
-            // Print intermediate data.
-            println!(">> _wallet_scan_outputs result: {scan_str}");
-            scan_result.push_str(&scan_str);
-        },
-        Err(err) => {
-            println!(">> _wallet_scan_outputs encountered error: {err}");
-            return Err(err);
-        },
-    }
+    )?;
 
-    // Convert final string result into a *const c_char.
-    let s = CString::new(scan_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Hand off responsibility to caller.
-    Ok(p)
+    ffi_string(scan_result)
 }
 
 /// Create a transaction via FFI.
@@ -494,8 +467,7 @@ fn _create_tx(
     note: &str,
     return_slate: bool,
 ) -> Result<*const c_char, Error> {
-    let mut message = String::from("");
-    match tx_create(
+    let message = match tx_create(
         wallet,
         keychain_mask,
         amount,
@@ -509,19 +481,12 @@ fn _create_tx(
         Ok(slate) => {
             let empty_json = format!(r#"{{"slate_msg": ""}}"#);
             let create_response = (&slate, &empty_json);
-            let str_create_response = serde_json::to_string(&create_response).unwrap();
-            message.push_str(&str_create_response);
+            serde_json::to_string(&create_response)?
         },
-        Err(e) => {
-            message.push_str(&e.to_string());
-            return Err(e);
-        }
-    }
+        Err(e) => return Err(e),
+    };
 
-    let s = CString::new(message).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    ffi_string(message)
 }
 
 /// Get transactions via FFI.
@@ -569,26 +534,10 @@ fn _txs_get(
     keychain_mask: Option<SecretKey>,
     refresh_from_node: bool,
 ) -> Result<*const c_char, Error> {
-    let mut txs_result = "".to_string();
-    match txs_get(
-        wallet,
-        keychain_mask,
-        refresh_from_node
-    ) {
-        Ok(txs) => {
-            txs_result.push_str(&txs);
-        },
-        Err(err) => {
-            return Err(err);
-        },
-    }
+    let txs = txs_get(wallet, keychain_mask, refresh_from_node)?;
 
-    let s = CString::new(txs_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    ffi_string(txs)
 }
-
 
 fn is_epicbox_tx_id(value: &str) -> bool {
     value.len() == 32
@@ -764,18 +713,33 @@ fn parse_optional_u32(
 
 fn ffi_string(value: String) -> Result<*const c_char, Error> {
     let value = CString::new(value)
-        .map_err(|e| Error::GenericError(format!("FFI string contains a NUL byte: {e}")))?;
-    let ptr = value.as_ptr();
-    std::mem::forget(value);
-    Ok(ptr)
+        .map_err(|e| {
+            Error::GenericError(
+                format!("FFI string contains a NUL byte: {e}")
+            )
+        })?;
+
+    Ok(value.into_raw() as *const c_char)
 }
 
 fn ffi_error_string(error: Error) -> *const c_char {
-    let value = CString::new(format!("Error {error}"))
-        .unwrap_or_else(|_| CString::new("Error returning FFI error").unwrap());
-    let ptr = value.as_ptr();
-    std::mem::forget(value);
-    ptr
+    CString::new(format!("Error {error}"))
+        .unwrap_or_else(|_| {
+            CString::new("Error returning FFI error").unwrap()
+        })
+        .into_raw() as *const c_char
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rust_string_free(
+    value: *mut c_char,
+) {
+    if value.is_null() {
+        return;
+    }
+
+    // retake ownership. RAII frees at the end of this scope
+    let _owned = CString::from_raw(value);
 }
 
 /// Get chain height via FFI.
@@ -848,20 +812,12 @@ pub unsafe extern "C" fn rust_delete_wallet(
 fn _delete_wallet(
     config: Config,
 ) -> Result<*const c_char, Error> {
-    let mut delete_result = String::from("");
-    match delete_wallet(config) {
-        Ok(deleted) => {
-            delete_result.push_str(&deleted);
-        },
-        Err(err) => {
-            return Err(err);
-        },
-    }
-    let s = CString::new(delete_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    let delete_result = match delete_wallet(config) {
+        Ok(deleted) => deleted,
+        Err(err) => return Err(err)
+    };
 
+    ffi_string(delete_result)
 }
 
 /// Send a transaction via FFI.
@@ -928,8 +884,7 @@ fn _tx_send_http(
     amount: u64,
     address: &str
 ) -> Result<*const c_char, Error> {
-    let mut send_result = String::from("");
-    match tx_send_http(
+    let send_result = match tx_send_http(
         wallet,
         keychain_mask,
         selection_strategy_is_use_all,
@@ -941,17 +896,12 @@ fn _tx_send_http(
         Ok(sent) => {
             let empty_json = format!(r#"{{"slate_msg": ""}}"#);
             let create_response = (&sent, &empty_json);
-            let str_create_response = serde_json::to_string(&create_response).unwrap();
-            send_result.push_str(&str_create_response);
+            serde_json::to_string(&create_response)?
         },
-        Err(err) => {
-            return Err(err);
-        },
-    }
-    let s = CString::new(send_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+        Err(err) => return Err(err)
+    };
+
+    ffi_string(send_result)
 }
 
 /// Get a wallet address via FFI.
@@ -1000,10 +950,8 @@ fn _get_wallet_address(
     epicbox_config: &str
 ) -> Result<*const c_char, Error> {
     let address = get_wallet_address(&wallet, keychain_mask, index, epicbox_config);
-    let s = CString::new(address).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s
-    Ok(p)
+
+    ffi_string(address)
 }
 
 /// Get a wallet address.
@@ -1088,18 +1036,12 @@ fn _get_tx_fees(
     amount: u64,
     minimum_confirmations: u64,
 ) -> Result<*const c_char, Error> {
-    let mut fees_data = "".to_string();
-    match tx_strategies(wallet, keychain_mask, amount, minimum_confirmations) {
-        Ok(fees) => {
-            fees_data.push_str(&fees);
-        }, Err(e) => {
-            return Err(e);
-        }
-    }
-    let s = CString::new(fees_data).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    let fees_data = match tx_strategies(wallet, keychain_mask, amount, minimum_confirmations) {
+        Ok(fees) => fees,
+        Err(e) => return Err(e)
+    };
+
+    ffi_string(fees_data)
 }
 
 /// Start a listener via FFI.
@@ -1217,24 +1159,17 @@ fn _tx_receive(
     keychain_mask: Option<SecretKey>,
     slate_json: &str,
 ) -> Result<*const c_char, Error> {
-    let mut out = String::new();
-
-    match tx_receive(wallet, keychain_mask, slate_json, None) {
+    let out = match tx_receive(wallet, keychain_mask, slate_json, None) {
         Ok(processed_slate) => {
             // Keep the outer API uniform with (<slate>, {"slate_msg":""}).
             let empty_json = r#"{"slate_msg": ""}"#;
             let response_tuple = (&processed_slate, &empty_json);
-            out.push_str(&serde_json::to_string(&response_tuple).unwrap());
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+            serde_json::to_string(&response_tuple)?
+        },
+        Err(e) => return Err(e),
+    };
 
-    let c_out = CString::new(out).unwrap();
-    let p = c_out.as_ptr();
-    std::mem::forget(c_out);
-    Ok(p)
+    ffi_string(out)
 }
 
 /// Finalize a slate via FFI.

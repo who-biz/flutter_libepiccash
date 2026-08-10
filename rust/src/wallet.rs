@@ -350,24 +350,15 @@ pub fn tx_cancel(
                         Ok("cancelled".to_owned())
                     }
                     Err(e) => {
-                        // if something went wrong, use traditional cancel, no relay communication of cancel
-                        /*
-                        api.cancel_tx(
-                            keychain_mask.as_ref(),
-                            tx_id,
-                            slate_uuid,
-                        )?;
-
-                        Ok("cancelled, without epicbox relay".to_owned())
-                        */
+                        // don't default to traditional cancel on error, could still get signed by receiver
+                        // better to keep things simple here i think
                         Err(Error::GenericError(e.to_string()))
                     }
                 }
             }
 
             None => {
-                // just use a standard cancel if we can't locate the epicbox_tx_id
-                /*
+                // just use a standard local-only cancel if we can't locate the epicbox_tx_id
                 api.cancel_tx(
                     keychain_mask.as_ref(),
                     tx_id,
@@ -375,8 +366,6 @@ pub fn tx_cancel(
                 )?;
 
                 Ok("cancelled, without epicbox relay".to_owned())
-                */
-                Err(Error::GenericError("Failed to find a bound epicbox_tx_id".to_string()))
             }
         }
     } else {
@@ -386,7 +375,7 @@ pub fn tx_cancel(
             slate_uuid,
         )?;
 
-        Ok("cancelled, without epicbox relay".to_owned())
+        Ok("cancelled locally".to_owned())
     }
 }
 
