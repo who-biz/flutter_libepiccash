@@ -227,7 +227,7 @@ String recoverWallet(
   try {
     final resultPtr = _recoverWallet(configPtr, passwordPtr, mnemonicPtr, namePtr);
 
-    return takeRustStrong(resultPtr);
+    return takeRustString(resultPtr);
   } finally {
     malloc.free(configPtr);
     malloc.free(passwordPtr);
@@ -257,7 +257,7 @@ Future<String> scanOutPuts(
       numberOfBlocksPtr,
     );
 
-    return takeRustStrong(resultPtr);
+    return takeRustString(resultPtr);
   } finally {
     malloc.free(walletPtr);
     malloc.free(startHeightPtr);
@@ -317,14 +317,14 @@ final EpicboxListenerIsRunning _epicboxListenerIsRunning = epicCashNative
 
 /// Check if the epicbox listener is still running.
 /// Returns true if the listener is alive, false if it has stopped or handler is null.
-bool epicboxListenerIsRunning(Pointer<Void>? handler) {
+bool epicboxListenerIsRunning(Pointer<Void> handler) {
   if (handler == nullptr) {
     return false;
   }
 
   try {
     final resultPtr = _epicboxListenerIsRunning(handler);
-    return takeRustString(ptr) == "true";
+    return takeRustString(resultPtr) == "true";
   } catch (_) {
     return false;
   }
@@ -446,7 +446,8 @@ int getChainHeight(String config) {
 
   try {
     final resultPtr = _getChainHeight(configPtr);
-    final latestHeight = ptr.toDartString();
+    final latestHeight = takeRustString(resultPtr);
+
     return int.parse(latestHeight);
   } finally {
     malloc.free(configPtr);
