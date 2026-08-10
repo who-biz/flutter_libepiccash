@@ -236,9 +236,18 @@ fn resolve_epicbox_tx_id(
     tx_id: Option<u32>,
     tx_slate_id: Option<Uuid>,
     supplied_epicbox_tx_id: Option<String>,
-) -> Result<String, Error> {
+) -> Result<Option<String>, Error> {
     if let Some(id) = supplied_epicbox_tx_id {
-        return Ok(id);
+        return Ok(Some(id));
+    }
+
+    if supplied_epicbox_tx_id.is_none()
+        && tx_id.is_none()
+        && tx_slate_id.is_none()
+    {
+        return Err(Error::GenericError(
+            "Transaction cancellation requires tx_id or tx_slate_id".to_owned(),
+        ));
     }
 
     wallet_lock!(wallet, w);
@@ -266,11 +275,12 @@ fn resolve_epicbox_tx_id(
     matching_ids.dedup();
 
     match matching_ids.as_slice() {
-        [id] => Ok(id.clone()),
+        [id] => Ok(Some(id.clone())),
 
-        [] => Err(Error::GenericError(
+        [] => Ok(None)
+        /*Err(Error::GenericError(
             "Transaction has no stored epicboxtxid".to_owned(),
-        )),
+        ))*/,
 
         _ => Err(Error::GenericError(
             "Transaction has conflicting stored epicboxtxids".to_owned(),
@@ -290,9 +300,12 @@ pub fn tx_cancel(
     epicbox_tx_id: Option<String>,
 ) -> Result<String, Error> {
     let is_node_synced = Arc::new(AtomicBool::new(true));
-    let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
+    let api = Owner::new(
+        wallet.clone(),
+        None,
+        is_node_synced.clone(),
+    );
 
-    // Parse the slate UUID before performing any relay or wallet work.
     let slate_uuid = tx_slate_id
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -301,48 +314,75 @@ pub fn tx_cancel(
         .map_err(|e| Error::GenericError(format!("Bad slate id: {e}")))?;
 
     if method_is_epicbox {
-        // Relay cancellation requires the same Epicbox configuration used for send.
-        let conf_str = epicbox_config
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| {
-                Error::GenericError("Epicbox cancel requires an epicbox config".to_owned())
-            })?;
-
-        let epicbox_conf = serde_json::from_str::<EpicboxConfig>(conf_str)
-            .map_err(|e| Error::GenericError(format!("Bad epicbox config: {e}")))?;
-
-        api.set_epicbox_config(Some(epicbox_conf));
-
-        let epicbox_tx_id = resolve_epicbox_tx_id(wallet, tx_id, slate_uuid, epicbox_tx_id)?;
-
-        match api.cancel_tx_epicbox(
-            keychain_mask.as_ref(),
+        let resolved_epicbox_tx_id = resolve_epicbox_tx_id(
+            wallet,
             tx_id,
-            Some(epicbox_tx_id),
             slate_uuid,
-        ) {
-            Ok(_) => {
-                Ok("cancelled".to_owned())
-            },Err(_) => {
-                //TODO: no longer need this
-                match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
+            epicbox_tx_id,
+        )?;
+
+        match resolved_epicbox_tx_id {
+            Some(epicbox_tx_id) => {
+                let conf_str = epicbox_config
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        Error::GenericError(
+                            "Epicbox cancel requires an epicbox config".to_owned()
+                        )
+                    })?;
+
+                let epicbox_conf =
+                    serde_json::from_str::<EpicboxConfig>(conf_str)
+                        .map_err(|e| {
+                            Error::GenericError(
+                                format!("Bad epicbox config: {e}")
+                            )
+                        })?;
+
+                api.set_epicbox_config(Some(epicbox_conf));
+
+                match api.cancel_tx_epicbox(
+                    keychain_mask.as_ref(),
+                    tx_id,
+                    Some(epicbox_tx_id),
+                    slate_uuid,
+                ) {
                     Ok(_) => {
+                        Ok("cancelled".to_owned())
+                    }
+                    Err(_) => {
+                        // if something went wrong, use traditional cancel, no relay communication of cancel
+                        api.cancel_tx(
+                            keychain_mask.as_ref(),
+                            tx_id,
+                            slate_uuid,
+                        )?;
+
                         Ok("cancelled, without epicbox relay".to_owned())
-                    },Err(e) => { 
-                        Err(e)
                     }
                 }
             }
-        }
-    } else {
-        match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
-            Ok(_) => {
+
+            None => {
+                // just use a standard cancel if we can't locate the epicbox_tx_id
+                api.cancel_tx(
+                    keychain_mask.as_ref(),
+                    tx_id,
+                    slate_uuid,
+                )?;
+
                 Ok("cancelled, without epicbox relay".to_owned())
-            },Err(e) => {
-                Err(e)
             }
         }
+    } else {
+        api.cancel_tx(
+            keychain_mask.as_ref(),
+            tx_id,
+            slate_uuid,
+        )?;
+
+        Ok("cancelled, without epicbox relay".to_owned())
     }
 }
 
