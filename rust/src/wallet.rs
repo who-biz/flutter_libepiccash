@@ -335,9 +335,7 @@ pub fn tx_cancel(
                 let epicbox_conf =
                     serde_json::from_str::<EpicboxConfig>(conf_str)
                         .map_err(|e| {
-                            Error::GenericError(
-                                format!("Bad epicbox config: {e}")
-                            )
+                            Error::GenericError(format!("Bad epicbox config: {e}"))
                         })?;
 
                 api.set_epicbox_config(Some(epicbox_conf));
@@ -351,8 +349,9 @@ pub fn tx_cancel(
                     Ok(_) => {
                         Ok("cancelled".to_owned())
                     }
-                    Err(_) => {
+                    Err(e) => {
                         // if something went wrong, use traditional cancel, no relay communication of cancel
+                        /*
                         api.cancel_tx(
                             keychain_mask.as_ref(),
                             tx_id,
@@ -360,12 +359,15 @@ pub fn tx_cancel(
                         )?;
 
                         Ok("cancelled, without epicbox relay".to_owned())
+                        */
+                        Err(Error::GenericError(e.to_string()))
                     }
                 }
             }
 
             None => {
                 // just use a standard cancel if we can't locate the epicbox_tx_id
+                /*
                 api.cancel_tx(
                     keychain_mask.as_ref(),
                     tx_id,
@@ -373,6 +375,8 @@ pub fn tx_cancel(
                 )?;
 
                 Ok("cancelled, without epicbox relay".to_owned())
+                */
+                Err(Error::GenericError("Failed to find a bound epicbox_tx_id".to_string()))
             }
         }
     } else {
