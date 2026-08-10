@@ -98,8 +98,8 @@ pub fn txs_get(
     keychain_mask: Option<SecretKey>,
     refresh_from_node: bool,
 ) -> Result<String, Error> {
-    let is_stopped = Arc::new(AtomicBool::new(false));
-    let api = Owner::new(wallet.clone(), None, is_stopped.clone());
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
     let res = match api.retrieve_txs(
         keychain_mask.as_ref(),
         refresh_from_node,
@@ -231,6 +231,54 @@ pub fn tx_create(
     }
 }*/
 
+fn resolve_epicbox_tx_id(
+    wallet: &Wallet,
+    tx_id: Option<u32>,
+    tx_slate_id: Option<Uuid>,
+    supplied_epicbox_tx_id: Option<String>,
+) -> Result<String, Error> {
+    if let Some(id) = supplied_epicbox_tx_id {
+        return Ok(id);
+    }
+
+    wallet_lock!(wallet, w);
+
+    let mut matching_ids = w
+        .tx_log_iter()
+        .filter(|entry| {
+            let id_matches =
+                tx_id.map_or(true, |id| entry.id == id);
+
+            let slate_matches =
+                tx_slate_id.map_or(
+                    true,
+                    |slate_id| {
+                        entry.tx_slate_id == Some(slate_id)
+                    },
+                );
+
+            id_matches && slate_matches
+        })
+        .filter_map(|entry| entry.epicbox_tx_id)
+        .collect::<Vec<_>>();
+
+    matching_ids.sort();
+    matching_ids.dedup();
+
+    match matching_ids.as_slice() {
+        [id] => Ok(id.clone()),
+
+        [] => Err(Error::GenericError(
+            "Transaction has no stored epicboxtxid".to_owned(),
+        )),
+
+        _ => Err(Error::GenericError(
+            "Transaction has conflicting stored epicboxtxids".to_owned(),
+        )),
+    }
+}
+
+
 /// Cancel a transaction, either via the Epicbox relay or locally.
 pub fn tx_cancel(
     wallet: &Wallet,
@@ -239,10 +287,10 @@ pub fn tx_cancel(
     epicbox_config: Option<&str>,
     tx_id: Option<u32>,
     tx_slate_id: Option<&str>,
-    epicbox_msg_id: Option<String>,
+    epicbox_tx_id: Option<String>,
 ) -> Result<String, Error> {
-    let is_stopped = Arc::new(AtomicBool::new(false));
-    let api = Owner::new(wallet.clone(), None, is_stopped.clone());
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 
     // Parse the slate UUID before performing any relay or wallet work.
     let slate_uuid = tx_slate_id
@@ -266,10 +314,12 @@ pub fn tx_cancel(
 
         api.set_epicbox_config(Some(epicbox_conf));
 
+        let epicbox_tx_id = resolve_epicbox_tx_id(wallet, tx_id, slate_uuid, epicbox_tx_id)?;
+
         match api.cancel_tx_epicbox(
             keychain_mask.as_ref(),
             tx_id,
-            epicbox_msg_id,
+            Some(epicbox_tx_id),
             slate_uuid,
         ) {
             Ok(_) => {
@@ -286,8 +336,6 @@ pub fn tx_cancel(
             }
         }
     } else {
-        //TODO: (Biz) handle this case gracefully
-        // it is a no-op right now for this case in core wallet
         match api.cancel_tx(keychain_mask.as_ref(), tx_id, slate_uuid) {
             Ok(_) => {
                 Ok("cancelled, without epicbox relay".to_owned())
@@ -347,8 +395,8 @@ pub fn tx_finalize(
     let slate = Slate::deserialize_upgrade(slate_json)?;
 
     // Use the Owner API to finalize and post the transaction.
-    let is_stopped = Arc::new(AtomicBool::new(false));
-    let owner_api = Owner::new(wallet.clone(), None, is_stopped.clone());
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    let owner_api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 
     let finalized_slate = owner_api.finalize_tx(keychain_mask.as_ref(), &slate)?;
 
@@ -363,8 +411,8 @@ pub fn tx_finalize(
 
 /// Get a transaction by slate ID.
 pub fn tx_get(wallet: &Wallet, refresh_from_node: bool, tx_slate_id: &str) -> Result<String, Error> {
-    let is_stopped = Arc::new(AtomicBool::new(false));
-    let api = Owner::new(wallet.clone(), None, is_stopped.clone());
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
     let uuid = Uuid::parse_str(tx_slate_id).map_err(|e| Error::GenericError(e.to_string()))?;
     let res = api.retrieve_txs(None, refresh_from_node, None, Some(uuid), None, None, None)?;
     Ok(serde_json::to_string(&res.txs).unwrap())
@@ -501,8 +549,8 @@ pub fn delete_wallet(config: Config) -> Result<String, Error> {
     };
     //First close the wallet
     if let Ok(_) = close_wallet(&wallet) {
-        let is_stopped = Arc::new(AtomicBool::new(false));
-        let api = Owner::new(wallet.clone(), None, is_stopped.clone());
+        let is_node_synced = Arc::new(AtomicBool::new(true));
+        let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
         match api.delete_wallet(None) {
             Ok(_) => {
                 result.push_str("deleted");
@@ -527,8 +575,8 @@ pub fn tx_send_http(
     amount: u64,
     address: &str,
 ) -> Result<String, Error>{
-    let is_stopped = Arc::new(AtomicBool::new(false));
-    let api = Owner::new(wallet.clone(), None, is_stopped.clone());
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
     let init_send_args = InitTxSendArgs {
         method: "http".to_string(),
         dest: address.to_string(),
@@ -549,7 +597,7 @@ pub fn tx_send_http(
         ..Default::default()
     };
 
-    match api.init_send_tx(keychain_mask.as_ref(), args, is_stopped.clone()) {
+    match api.init_send_tx(keychain_mask.as_ref(), args, is_node_synced.clone()) {
         Ok(slate) => {
             println!("{}", "CREATE_TX_SUCCESS");
             //Get transaction for slate, for UI display
@@ -676,8 +724,8 @@ pub fn get_wallet_info(
     refresh_from_node: bool,
     min_confirmations: u64
 ) -> Result<WalletInfoFormatted, Error> {
-    let is_stopped = Arc::new(AtomicBool::new(false));
-    let api = Owner::new(wallet.clone(), None, is_stopped.clone());
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 
     match api.retrieve_summary_info(keychain_mask.as_ref(), refresh_from_node, min_confirmations) {
         Ok((_, wallet_summary)) => {
