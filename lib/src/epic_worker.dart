@@ -222,7 +222,7 @@ class EpicWorker {
           args['epicboxConfig'] as String?,
           args['txId'] as int?,
           args['txSlateId'] as String?,
-          args['epicboxMsgId'] as String?,
+          args['txEpicboxId'] as String?,
         );
 
       case EpicFuncName.getChainHeight:

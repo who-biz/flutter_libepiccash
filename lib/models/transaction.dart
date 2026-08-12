@@ -12,6 +12,7 @@ class Transaction {
   final String parentKeyId;
   final int id;
   final String? txSlateId;
+  final String? txEpicboxId;
   final TransactionType txType;
   final String creationTs;
   final String confirmationTs;
@@ -32,6 +33,7 @@ class Transaction {
     required this.parentKeyId,
     required this.id,
     this.txSlateId,
+    this.txEpicboxId,
     required this.txType,
     required this.creationTs,
     required this.confirmationTs,
@@ -62,6 +64,7 @@ class Transaction {
       parentKeyId: json['parent_key_id'] as String,
       id: int.parse(json!['id'].toString()),
       txSlateId: json['tx_slate_id'] as String?,
+      txEpicboxId: json['epicbox_tx_id'] as String?,
       txType: txType,
       creationTs: json['creation_ts'].toString(),
       confirmationTs: json['confirmation_ts'].toString(),
@@ -89,6 +92,7 @@ class Transaction {
       'parentKeyId': parentKeyId,
       'id': id,
       'txSlateId': txSlateId,
+      'txEpicboxId': txEpicboxId,
       'txType': txType.name,
       'creationTs': creationTs,
       'confirmationTs': confirmationTs,
@@ -112,6 +116,7 @@ class Transaction {
       parentKeyId: map['parentKeyId'] as String,
       id: map['id'] as int,
       txSlateId: map['txSlateId'] as String?,
+      txEpicboxId: map['txEpicboxId'] as String?,
       txType: TransactionType.values.byName(map['txType'] as String),
       creationTs: map['creationTs'] as String,
       confirmationTs: map['confirmationTs'] as String,

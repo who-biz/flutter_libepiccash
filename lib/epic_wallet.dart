@@ -473,7 +473,7 @@ class EpicWallet {
     required bool methodIsEpicbox,
     int? txId,
     String? txSlateId,
-    String? epicboxMsgId,
+    String? txEpicboxId,
   }) async {
     final result = await _worker.runTask<String>(
       EpicTask.cancelEpicboxTransaction(
@@ -482,7 +482,7 @@ class EpicWallet {
         epicboxConfig: methodIsEpicbox ? _epicboxConfig : null,
         txId: txId,
         txSlateId: txSlateId,
-        epicboxMsgId: epicboxMsgId,
+        txEpicboxId: txEpicboxId,
       ),
     );
 
