@@ -39,6 +39,7 @@ use crate::listener::{
     listener_poll,
     listener_result_destroy,
     listener_spawn,
+    listener_wait,
 };
 
 use crate::init_logger;
@@ -940,12 +941,11 @@ pub unsafe extern "C" fn rust_epicbox_listener_start(
     listener_spawn(&listener).cast::<c_void>()
 }
 
-
-/// Request cancellation without blocking the FFI caller.
+/// Cancel a listener and wait for its task to terminate.
 ///
-/// The current Listener task does not yet propagate cancellation into the
-/// blocking EpicboxListenChannel::listen() call, so listener_wait() must not
-/// be used here.
+/// EpicboxListenChannel::listen() observes the task cancellation token,
+/// and its socket read timeout ensures an idle websocket periodically
+/// returns control so cancellation can be observed.
 #[no_mangle]
 pub unsafe extern "C" fn _listener_cancel(
     handler: *mut c_void,
@@ -959,9 +959,15 @@ pub unsafe extern "C" fn _listener_cancel(
 
     listener_cancel(handle);
 
-    // Frees the FFI TaskHandle without waiting indefinitely for the
-    // blocking websocket listener.
-    listener_handle_destroy(handle);
+    // Wait for the listener task to actually terminate.
+    //
+    // listener_wait() consumes/frees the TaskHandle, so do not call
+    // listener_handle_destroy(handle) afterward.
+    let result = listener_wait(handle);
+
+    if !result.is_null() {
+        listener_result_destroy(result);
+    }
 
     ffi_string("true".to_owned())
         .unwrap_or_else(ffi_error_string)

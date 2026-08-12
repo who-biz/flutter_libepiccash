@@ -1416,7 +1416,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_api"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#b9e4623b81d7c1f00fc871c107f02f2a27d3344f"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#3952298eb80ef2eafea53a476b950e042937cb24"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1439,7 +1439,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_config"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#b9e4623b81d7c1f00fc871c107f02f2a27d3344f"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#3952298eb80ef2eafea53a476b950e042937cb24"
 dependencies = [
  "dirs 6.0.0",
  "epic_wallet_util",
@@ -1453,7 +1453,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_controller"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#b9e4623b81d7c1f00fc871c107f02f2a27d3344f"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#3952298eb80ef2eafea53a476b950e042937cb24"
 dependencies = [
  "bytes 1.11.0",
  "chrono",
@@ -1486,7 +1486,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_impls"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#b9e4623b81d7c1f00fc871c107f02f2a27d3344f"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#3952298eb80ef2eafea53a476b950e042937cb24"
 dependencies = [
  "base64 0.22.1",
  "bitvec",
@@ -1529,7 +1529,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_libwallet"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#b9e4623b81d7c1f00fc871c107f02f2a27d3344f"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#3952298eb80ef2eafea53a476b950e042937cb24"
 dependencies = [
  "aead",
  "blake2-rfc",
@@ -1562,7 +1562,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_util"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#b9e4623b81d7c1f00fc871c107f02f2a27d3344f"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#3952298eb80ef2eafea53a476b950e042937cb24"
 dependencies = [
  "dirs 6.0.0",
  "epic_api",

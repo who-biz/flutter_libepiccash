@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::Arc as StdArc;
 use std::sync::atomic::AtomicBool;
 
 use epic_util::Mutex;
@@ -40,28 +39,22 @@ impl Task for Listener {
             }
 
             let listener = EpicboxListenChannel::new()
-                .map_err(|e| anyhow::anyhow!(
-                    "Could not create Epicbox listener: {e}"
-                ))?;
+                .map_err(|e| anyhow::anyhow!("Could not create Epicbox listener: {e}"))?;
 
             let mut reconnections = 0;
 
-            listener
-                .listen(
-                    wallet.clone(),
-                    Arc::new(Mutex::new(sek_key)),
-                    epicbox_conf,
-                    &mut reconnections,
+            let should_stop = || cancel_tok.cancelled();
 
-                    // This means "node is ready to process messages."
-                    // It is not the listener cancellation flag.
-                    StdArc::new(AtomicBool::new(true)),
-
-                    TorConfig::default(),
-                )
-                .map_err(|e| anyhow::anyhow!(
-                    "Epicbox listener error: {e}"
-                ))?;
+            listener.listen(
+                wallet.clone(),
+                Arc::new(Mutex::new(sek_key)),
+                epicbox_conf,
+                &mut reconnections,
+                Arc::new(AtomicBool::new(true)),
+                TorConfig::default(),
+                &should_stop,
+            )
+            .map_err(|e| anyhow::anyhow!("Epicbox listener error: {e}"))?;
         }
 
         Ok(0)
