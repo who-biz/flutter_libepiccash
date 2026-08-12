@@ -407,7 +407,7 @@ String cancelEpicboxTransaction(
   String? epicboxConfig,
   int? txId,
   String? txSlateId,
-  String? epicboxMsgId,
+  String? txEpicboxId,
 ) {
   final walletPtr = wallet.toNativeUtf8();
   final methodIsEpicboxPtr =
@@ -415,7 +415,7 @@ String cancelEpicboxTransaction(
   final epicboxConfigPtr = (epicboxConfig ?? '').toNativeUtf8();
   final txIdPtr = (txId?.toString() ?? '').toNativeUtf8().cast<Int8>();
   final txSlateIdPtr = (txSlateId ?? '').toNativeUtf8();
-  final epicboxMsgIdPtr = (epicboxMsgId ?? '').toNativeUtf8();
+  final txEpicboxIdPtr = (txEpicboxId ?? '').toNativeUtf8();
 
   try {
     final resultPtr = _cancelEpicboxTransaction(
@@ -424,7 +424,7 @@ String cancelEpicboxTransaction(
       epicboxConfigPtr,
       txIdPtr,
       txSlateIdPtr,
-      epicboxMsgIdPtr,
+      txEpicboxIdPtr,
     );
     return takeRustString(resultPtr);
   } finally {
@@ -433,7 +433,7 @@ String cancelEpicboxTransaction(
     malloc.free(epicboxConfigPtr);
     malloc.free(txIdPtr);
     malloc.free(txSlateIdPtr);
-    malloc.free(epicboxMsgIdPtr);
+    malloc.free(txEpicboxIdPtr);
   }
 }
 

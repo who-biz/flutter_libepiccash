@@ -351,7 +351,7 @@ abstract class LibEpiccash {
       String? epicboxConfig,
       int? txId,
       String? txSlateId,
-      String? epicboxMsgId,
+      String? txEpicboxId,
     }) data,
   ) async {
     return lib_epiccash.cancelEpicboxTransaction(
@@ -360,7 +360,7 @@ abstract class LibEpiccash {
       data.epicboxConfig,
       data.txId,
       data.txSlateId,
-      data.epicboxMsgId,
+      data.txEpicboxId,
     );
   }
 
@@ -371,7 +371,7 @@ abstract class LibEpiccash {
     String? epicboxConfig,
     int? txId,
     String? txSlateId,
-    String? epicboxMsgId,
+    String? txEpicboxId,
   }) async {
     return await m.protect(() async {
       try {
@@ -381,7 +381,7 @@ abstract class LibEpiccash {
           epicboxConfig,
           txId,
           txSlateId,
-          epicboxMsgId,
+          txEpicboxId,
         );
 
         _checkForError(result);

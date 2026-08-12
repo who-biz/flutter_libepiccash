@@ -40,7 +40,7 @@ class EpicTask {
     String? epicboxConfig,
     int? txId,
     String? txSlateId,
-    String? epicboxMsgId,
+    String? txEpicboxId,
   }) {
     return EpicTask(
       func: EpicFuncName.cancelEpicboxTransaction,
@@ -50,7 +50,7 @@ class EpicTask {
         'epicboxConfig': epicboxConfig,
         'txId': txId,
         'txSlateId': txSlateId,
-        'epicboxMsgId': epicboxMsgId,
+        'txEpicboxId': txEpicboxId,
       },
     );
   }
