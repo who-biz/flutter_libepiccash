@@ -45,7 +45,7 @@ impl Task for Listener {
 
             let should_stop = || cancel_tok.cancelled();
 
-            listener.listen(
+            listener.listen_with_stop(
                 wallet.clone(),
                 Arc::new(Mutex::new(sek_key)),
                 epicbox_conf,
