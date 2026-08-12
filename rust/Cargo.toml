@@ -33,12 +33,12 @@ epic_keychain = { git = "https://github.com/who-biz/epic.git", branch = "randomx
 epic_util = { git = "https://github.com/who-biz/epic.git", branch = "randomx-api-fix" }
 epic_core = { git = "https://github.com/who-biz/epic.git", branch = "randomx-api-fix" }
 
-epic_wallet_api = { git = "https://github.com/who-biz/epic-wallet", branch = "ebox-cancel-txs" }
-epic_wallet_impls = { git = "https://github.com/who-biz/epic-wallet", branch = "ebox-cancel-txs" }
-epic_wallet_libwallet = { git = "https://github.com/who-biz/epic-wallet", branch = "ebox-cancel-txs" }
-epic_wallet_config = { git = "https://github.com/who-biz/epic-wallet", branch = "ebox-cancel-txs" }
-epic_wallet_util = { git = "https://github.com/who-biz/epic-wallet", branch = "ebox-cancel-txs" }
-epic_wallet_controller = { git = "https://github.com/who-biz/epic-wallet", branch = "ebox-cancel-txs" }
+epic_wallet_api = { git = "https://github.com/who-biz/epic-wallet", branch = "epicbox-cancel-backup" }
+epic_wallet_impls = { git = "https://github.com/who-biz/epic-wallet", branch = "epicbox-cancel-backup" }
+epic_wallet_libwallet = { git = "https://github.com/who-biz/epic-wallet", branch = "epicbox-cancel-backup" }
+epic_wallet_config = { git = "https://github.com/who-biz/epic-wallet", branch = "epicbox-cancel-backup" }
+epic_wallet_util = { git = "https://github.com/who-biz/epic-wallet", branch = "epicbox-cancel-backup" }
+epic_wallet_controller = { git = "https://github.com/who-biz/epic-wallet", branch = "epicbox-cancel-backup" }
 
 url = "2.1.0"
 futures = "0.3.15"
