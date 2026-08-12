@@ -387,7 +387,23 @@ class EpicWallet {
 
     checkForError(txListJson);
 
+    // diagnostic test 
+    print("EPIC RAW getTransactions JSON: $txListJson");
+
     final txList = jsonDecode(txListJson) as List<dynamic>;
+
+
+    for (final tx in txList) {
+      print(
+        "EPIC RAW TX "
+        "id=${tx['id']} "
+        "tx_slate_id=${tx['tx_slate_id']} "
+        "tx_epicbox_id=${tx['tx_epicbox_id']} "
+        "epicbox_tx_id=${tx['epicbox_tx_id']} "
+        "epicboxtxid=${tx['epicboxtxid']}",
+      );
+    }
+
     return txList.map((tx) => Transaction.fromJson(tx)).toList();
   }
 
