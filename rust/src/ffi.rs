@@ -16,6 +16,7 @@ use crate::mnemonic::create_seed;
 use crate::mnemonic::_get_mnemonic;
 
 use crate::wallet::Wallet;
+use crate::wallet::WalletHandle;
 use crate::wallet::create_wallet;
 use crate::wallet::recover_from_mnemonic;
 use crate::wallet::open_wallet;
@@ -145,14 +146,16 @@ fn _open_wallet(
     let str_config = c_conf.to_str().unwrap();
     let str_password = c_password.to_str().unwrap();
 
-    let result = match open_wallet(&str_config, str_password) {
-        Ok(res) => {
-            let wlt = res.0;
-            let sek_key = res.1;
-            let wallet_int = Box::into_raw(Box::new(wlt)) as i64;
-            let wallet_data = (wallet_int, sek_key);
+    let result = match open_wallet(str_config, str_password) {
+        Ok((wallet, sek_key)) => {
+            let handle = WalletHandle::new(wallet);
+
+            let handle_int = Box::into_raw(Box::new(handle)) as i64;
+
+            let wallet_data = (handle_int, sek_key);
+
             serde_json::to_string(&wallet_data)?
-        },
+        }
         Err(err) => return Err(err),
     };
 
@@ -182,13 +185,14 @@ pub unsafe extern "C"  fn rust_wallet_balances(
     let wlt = tuple_wallet_data.0;
     let sek_key = tuple_wallet_data.1;
 
-    ensure_wallet!(wlt, wallet);
+    ensure_wallet!(wlt, handle, wallet);
 
     match _wallet_balances(
         wallet,
         sek_key,
         refresh,
-        minimum_confirmations
+        minimum_confirmations,
+        handle.is_node_synced.clone()
     ) {
         Ok(balances) => balances,
         Err(e ) => ffi_error_string(e),
@@ -201,13 +205,14 @@ fn _wallet_balances(
     keychain_mask: Option<SecretKey>,
     refresh: bool,
     min_confirmations: u64,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<*const c_char, Error> {
     // Print arguments for debugging/test-vector use.
     println!(
         ">> _wallet_balances called with refresh={refresh}, min_confirmations={min_confirmations}"
     );
 
-    let wallet_info_str = match get_wallet_info(wallet, keychain_mask, refresh, min_confirmations) {
+    let wallet_info_str = match get_wallet_info(wallet, keychain_mask, refresh, min_confirmations, is_node_synced) {
         Ok(info) => {
             println!(">> _wallet_balances got info: {:?}", info);
             serde_json::to_string(&info)?
@@ -361,7 +366,7 @@ pub unsafe extern "C" fn rust_create_tx(
     let wlt = tuple_wallet_data.0;
     let sek_key = tuple_wallet_data.1;
 
-    ensure_wallet!(wlt, wallet);
+    ensure_wallet!(wlt, handle, wallet);
 
     match _create_tx(
         wallet,
@@ -373,6 +378,7 @@ pub unsafe extern "C" fn rust_create_tx(
         min_confirmations,
         note,
         return_slate,
+        handle.is_node_synced.clone(),
     ) {
         Ok(slate) => slate,
         Err(e) => ffi_error_string(e)
@@ -390,6 +396,7 @@ fn _create_tx(
     minimum_confirmations: u64,
     note: &str,
     return_slate: bool,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<*const c_char, Error> {
     let message = match tx_create(
         wallet,
@@ -401,6 +408,7 @@ fn _create_tx(
         address,
         note,
         Some(return_slate),
+        is_node_synced,
     ) {
         Ok(slate) => {
             let empty_json = format!(r#"{{"slate_msg": ""}}"#);
@@ -432,12 +440,13 @@ pub unsafe extern "C" fn rust_txs_get(
     let wlt = tuple_wallet_data.0;
     let sek_key = tuple_wallet_data.1;
 
-    ensure_wallet!(wlt, wallet);
+    ensure_wallet!(wlt, handle, wallet);
 
     match _txs_get(
         wallet,
         sek_key,
         refresh,
+        handle.is_node_synced.clone(),
     ) {
         Ok(txs) => txs,
         Err(e) => ffi_error_string(e),
@@ -449,8 +458,9 @@ fn _txs_get(
     wallet: &Wallet,
     keychain_mask: Option<SecretKey>,
     refresh_from_node: bool,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<*const c_char, Error> {
-    let txs = txs_get(wallet, keychain_mask, refresh_from_node)?;
+    let txs = txs_get(wallet, keychain_mask, refresh_from_node, is_node_synced)?;
 
     ffi_string(txs)
 }
@@ -744,7 +754,8 @@ pub unsafe extern "C" fn rust_tx_send_http(
     let tuple_wallet_data: (i64, Option<SecretKey>) = serde_json::from_str(wallet_data).unwrap();
     let wlt = tuple_wallet_data.0;
     let sek_key = tuple_wallet_data.1;
-    ensure_wallet!(wlt, wallet);
+
+    ensure_wallet!(wlt, handle, wallet);
 
     match _tx_send_http(
         wallet,
@@ -753,7 +764,8 @@ pub unsafe extern "C" fn rust_tx_send_http(
         minimum_confirmations,
         str_message,
         amount,
-        str_address
+        str_address,
+        handle.is_node_synced.clone(),
     ) {
         Ok(tx_data) => tx_data,
         Err(err) => ffi_error_string(err),
@@ -768,7 +780,8 @@ fn _tx_send_http(
     minimum_confirmations: u64,
     message: &str,
     amount: u64,
-    address: &str
+    address: &str,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<*const c_char, Error> {
     let send_result = match tx_send_http(
         wallet,
@@ -777,7 +790,8 @@ fn _tx_send_http(
         minimum_confirmations,
         message,
         amount,
-        address
+        address,
+        is_node_synced,
     ) {
         Ok(sent) => {
             let empty_json = format!(r#"{{"slate_msg": ""}}"#);

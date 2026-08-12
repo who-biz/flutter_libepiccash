@@ -1,6 +1,4 @@
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-
 use epic_util::Mutex;
 use epic_util::secp::SecretKey;
 use epic_wallet_config::{EpicboxConfig, TorConfig};
@@ -32,7 +30,7 @@ impl Task for Listener {
                 .map_err(|e| anyhow::anyhow!("Invalid Epicbox config: {e}"))?;
 
         unsafe {
-            crate::ensure_wallet!(wlt, wallet);
+            crate::ensure_wallet!(wlt, handle, wallet);
 
             if cancel_tok.cancelled() {
                 return Ok(0);
@@ -50,7 +48,7 @@ impl Task for Listener {
                 Arc::new(Mutex::new(sek_key)),
                 epicbox_conf,
                 &mut reconnections,
-                Arc::new(AtomicBool::new(true)),
+                handle.is_node_synced.clone(),
                 TorConfig::default(),
                 &should_stop,
             )

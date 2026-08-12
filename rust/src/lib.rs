@@ -24,7 +24,7 @@ pub mod mnemonic;
 pub mod wallet;
 pub mod listener;
 
-#[macro_export]
+/*#[macro_export]
 macro_rules! ensure_wallet (
     ($wallet_ptr:expr, $wallet:ident) => (
         if ($wallet_ptr as *mut Wallet).as_mut().is_none() {
@@ -32,7 +32,41 @@ macro_rules! ensure_wallet (
         }
         let $wallet = ($wallet_ptr as *mut Wallet).as_mut().unwrap();
     )
-);
+);*/
+
+//TODO: (Biz) remove legacy 2-arg variant, here for compat for now
+// above is left commented for reference
+#[macro_export]
+macro_rules! ensure_wallet {
+    // for existing call sites: ensure_wallet!(wlt, wallet)
+    ($wallet_ptr:expr, $wallet:ident) => {
+        let wallet_handle =
+            ($wallet_ptr as *const $crate::wallet::WalletHandle)
+                .as_ref();
+
+        if wallet_handle.is_none() {
+            println!("{}", "WALLET_IS_NOT_OPEN");
+        }
+
+        let wallet_handle = wallet_handle.unwrap();
+        let $wallet = &wallet_handle.wallet;
+    };
+
+    // for new call sites: ensure_wallet!(wlt, handle, wallet)
+    // this gives us access to handle.is_node_synced, which tells us shared node sync state
+    ($wallet_ptr:expr, $handle:ident, $wallet:ident) => {
+        let $handle =
+            ($wallet_ptr as *const $crate::wallet::WalletHandle)
+                .as_ref();
+
+        if $handle.is_none() {
+            println!("{}", "WALLET_IS_NOT_OPEN");
+        }
+
+        let $handle = $handle.unwrap();
+        let $wallet = &$handle.wallet;
+    };
+}
 
 fn init_logger() {
     android_logger::init_once(

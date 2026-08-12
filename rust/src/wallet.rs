@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use serde_derive::{Deserialize, Serialize};
 use epic_keychain::ExtKeychain;
 use epic_util::{Mutex, ZeroingString};
@@ -18,7 +18,7 @@ use epic_wallet_libwallet::WalletLCProvider;
 use epic_wallet_libwallet::NodeClient;
 use epic_keychain::Keychain;
 use epic_wallet_impls::DefaultWalletImpl;
-use std::cmp::Ordering;
+use std::cmp::Ordering as StdOrdering;
 
 /// Wallet type.
 pub type Wallet = Arc<
@@ -33,6 +33,23 @@ pub type Wallet = Arc<
         >,
     >,
 >;
+
+/// WalletHandle for correct monitoring of node sync status
+pub struct WalletHandle {
+    pub wallet: Wallet,
+    pub is_node_synced: Arc<AtomicBool>,
+}
+
+impl WalletHandle {
+    pub fn new(wallet: Wallet) -> Self {
+        Self {
+            wallet,
+            is_node_synced: Arc::new(
+                AtomicBool::new(false),
+            ),
+        }
+    }
+}
 
 /// Wallet information.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -76,7 +93,10 @@ pub fn tx_strategies(
         ..Default::default()
     };
 
-    match owner::init_send_tx(&mut **w, keychain_mask.as_ref(), args, true) {
+    // (Biz) init_send_tx here was being called with last arg true
+    // that is for doctest mode, not prod - function being called here is 
+    // the lower level api_impl::owner function, not api::owner
+    match owner::init_send_tx(&mut **w, keychain_mask.as_ref(), args, false) {
         Ok(slate) => {
             result.push(Strategy {
                 selection_strategy_is_use_all: false,
@@ -97,10 +117,15 @@ pub fn txs_get(
     wallet: &Wallet,
     keychain_mask: Option<SecretKey>,
     refresh_from_node: bool,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<String, Error> {
-    let is_node_synced = Arc::new(AtomicBool::new(true));
     let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
-    let res = match api.retrieve_txs(
+
+    if refresh_from_node {
+        is_node_synced.store(false, Ordering::SeqCst);
+    }
+
+    let res = api.retrieve_txs(
         keychain_mask.as_ref(),
         refresh_from_node,
         None,
@@ -108,13 +133,23 @@ pub fn txs_get(
         None,
         None,
         None,
-    ) {
-        Ok(result) => result,
-        Err(e) => return Err(e),
-    };
+    )?;
 
-    let result = res.txs;
-    Ok(serde_json::to_string(&result).unwrap())
+    if refresh_from_node {
+        if !res.refresh_from_node {
+            return Err(Error::GenericError(
+                "Wallet could not be refreshed from node".to_owned(),
+            ));
+        }
+    }
+
+    let result = serde_json::to_string(&res.txs)
+        .map_err(|e| Error::GenericError(e.to_string()))?;
+
+    // we ONLY set this to true here, nowhere else, and after serialization has succeeded
+    is_node_synced.store(true, Ordering::SeqCst);
+
+    Ok(result)
 }
 
 /// Initialize a transaction as sender.
@@ -136,15 +171,10 @@ pub fn tx_create(
     address: &str,
     note: &str,
     return_slate: Option<bool>,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<String, Error> {
     let return_slate = return_slate.unwrap_or(false);
 
-    //let is_stopped = Arc::new(AtomicBool::new(false));
-    //let owner_api = Owner::new(wallet.clone(), None, is_stopped.clone());
-
-    //TODO: (Biz) ensure the change below, compared to now-commented lines above
-    // makes sense. seems argument misalignment
-    let is_node_synced = Arc::new(AtomicBool::new(true));
     let owner_api = Owner::new(
         wallet.clone(),
         None,
@@ -178,9 +208,6 @@ pub fn tx_create(
     };
 
     // Create the transaction.
-    //let slate: Slate = owner_api.init_send_tx(keychain_mask.as_ref(), args, is_stopped.clone())?;
-
-    // TODO: (Biz) associated change to TODO above
     let slate: Slate = owner_api.init_send_tx(keychain_mask.as_ref(), args, is_node_synced.clone())?;
 
 
@@ -607,8 +634,8 @@ pub fn tx_send_http(
     message: &str,
     amount: u64,
     address: &str,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<String, Error>{
-    let is_node_synced = Arc::new(AtomicBool::new(true));
     let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
     let init_send_args = InitTxSendArgs {
         method: "http".to_string(),
@@ -754,28 +781,36 @@ pub fn get_wallet_secret_key_pair(
 pub fn get_wallet_info(
     wallet: &Wallet,
     keychain_mask: Option<SecretKey>,
-    refresh_from_node: bool,
-    min_confirmations: u64
+    should_refresh_from_node: bool,
+    min_confirmations: u64,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<WalletInfoFormatted, Error> {
-    let is_node_synced = Arc::new(AtomicBool::new(true));
     let api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 
-    match api.retrieve_summary_info(keychain_mask.as_ref(), refresh_from_node, min_confirmations) {
-        Ok((_, wallet_summary)) => {
-            Ok(WalletInfoFormatted {
-                last_confirmed_height: wallet_summary.last_confirmed_height,
-                minimum_confirmations: wallet_summary.minimum_confirmations,
-                total: nano_to_deci(wallet_summary.total),
-                amount_awaiting_finalization: nano_to_deci(wallet_summary.amount_awaiting_finalization),
-                amount_awaiting_confirmation: nano_to_deci(wallet_summary.amount_awaiting_confirmation),
-                amount_immature: nano_to_deci(wallet_summary.amount_immature),
-                amount_currently_spendable: nano_to_deci(wallet_summary.amount_currently_spendable),
-                amount_locked: nano_to_deci(wallet_summary.amount_locked)
-            })
-        }, Err(e) => {
-            Err(e)
-        }
+    if should_refresh_from_node {
+        // we set to false here to begin holding, txs_get() will release with true
+        is_node_synced.store(false, Ordering::SeqCst);
     }
+
+    let (node_refreshed, wallet_summary) =
+        api.retrieve_summary_info(keychain_mask.as_ref(), should_refresh_from_node, min_confirmations)?;
+
+    if should_refresh_from_node && !node_refreshed {
+        return Err(Error::GenericError(
+            "Wallet could not be refreshed from node".to_owned(),
+        ));
+    }
+
+    Ok(WalletInfoFormatted {
+        last_confirmed_height: wallet_summary.last_confirmed_height,
+        minimum_confirmations: wallet_summary.minimum_confirmations,
+        total: nano_to_deci(wallet_summary.total),
+        amount_awaiting_finalization: nano_to_deci(wallet_summary.amount_awaiting_finalization),
+        amount_awaiting_confirmation: nano_to_deci(wallet_summary.amount_awaiting_confirmation),
+        amount_immature: nano_to_deci(wallet_summary.amount_immature),
+        amount_currently_spendable: nano_to_deci(wallet_summary.amount_currently_spendable),
+        amount_locked: nano_to_deci(wallet_summary.amount_locked)
+    })
 }
 
 /// Recover a wallet from a mnemonic.
@@ -954,13 +989,13 @@ pub fn wallet_scan_outputs(
 
     let last_block = start_height.clone() + number_of_blocks_to_scan;
     let end_height: u64 = match last_block.cmp(&tip) {
-        Ordering::Less => {
+        StdOrdering::Less => {
             last_block
         },
-        Ordering::Greater => {
+        StdOrdering::Greater => {
             tip
         },
-        Ordering::Equal => {
+        StdOrdering::Equal => {
             last_block
         }
     };
