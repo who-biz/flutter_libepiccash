@@ -64,7 +64,7 @@ class Transaction {
       parentKeyId: json['parent_key_id'] as String,
       id: int.parse(json!['id'].toString()),
       txSlateId: json['tx_slate_id'] as String?,
-      txEpicboxId: json['tx_epicbox_id'] as String?,
+      txEpicboxId: json['epicbox_tx_id'] as String?,
       txType: txType,
       creationTs: json['creation_ts'].toString(),
       confirmationTs: json['confirmation_ts'].toString(),
