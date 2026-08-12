@@ -539,7 +539,7 @@ pub unsafe extern "C" fn rust_epicbox_tx_cancel(
     let wlt = tuple_wallet_data.0;
     let sek_key = tuple_wallet_data.1;
 
-    ensure_wallet!(wlt, wallet);
+    ensure_wallet!(wlt, handle, wallet);
 
     match _epicbox_tx_cancel(
         wallet,
@@ -549,6 +549,7 @@ pub unsafe extern "C" fn rust_epicbox_tx_cancel(
         tx_id,
         tx_slate_id.as_deref(),
         epicbox_tx_id,
+        handle.is_node_synced.clone(),
     ) {
         Ok(cancelled) => cancelled,
         Err(e) => ffi_error_string(e),
@@ -564,6 +565,7 @@ fn _epicbox_tx_cancel(
     tx_id: Option<u32>,
     tx_slate_id: Option<&str>,
     epicbox_tx_id: Option<String>,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<*const c_char, Error> {
     tx_cancel(
         wallet,
@@ -573,6 +575,7 @@ fn _epicbox_tx_cancel(
         tx_id,
         tx_slate_id,
         epicbox_tx_id,
+        is_node_synced
     )?;
 
     ffi_string(String::new())

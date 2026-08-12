@@ -325,8 +325,8 @@ pub fn tx_cancel(
     tx_id: Option<u32>,
     tx_slate_id: Option<&str>,
     epicbox_tx_id: Option<String>,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<String, Error> {
-    let is_node_synced = Arc::new(AtomicBool::new(true));
     let api = Owner::new(
         wallet.clone(),
         None,
