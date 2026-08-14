@@ -16,6 +16,7 @@ use crate::config::{create_wallet_config, Config};
 use epic_wallet_libwallet::Address;
 use epic_wallet_libwallet::WalletLCProvider;
 use epic_wallet_libwallet::NodeClient;
+use epic_wallet_libwallet::epicbox_txid::EpicboxTxId;
 use epic_keychain::Keychain;
 use epic_wallet_impls::DefaultWalletImpl;
 use std::cmp::Ordering;
@@ -236,15 +237,20 @@ fn resolve_epicbox_tx_id(
     tx_id: Option<u32>,
     tx_slate_id: Option<Uuid>,
     supplied_epicbox_tx_id: Option<String>,
-) -> Result<Option<String>, Error> {
+) -> Result<Option<EpicboxTxId>, Error> {
     if let Some(id) = supplied_epicbox_tx_id {
-        return Ok(Some(id));
+        let epicbox_tx_id = EpicboxTxId::parse(&id).map_err(|e| {
+            Error::GenericError(format!(
+                "Invalid supplied epicbox_tx_id [{}]: {}",
+                id,
+                e
+            ))
+        })?;
+
+        return Ok(Some(epicbox_tx_id));
     }
 
-    if supplied_epicbox_tx_id.is_none()
-        && tx_id.is_none()
-        && tx_slate_id.is_none()
-    {
+    if tx_id.is_none() && tx_slate_id.is_none() {
         return Err(Error::GenericError(
             "Transaction cancellation requires tx_id or tx_slate_id".to_owned(),
         ));
@@ -252,42 +258,46 @@ fn resolve_epicbox_tx_id(
 
     wallet_lock!(wallet, w);
 
-    let mut matching_ids = w
+    let mut entries = w
         .tx_log_iter()
         .filter(|entry| {
             let id_matches =
                 tx_id.map_or(true, |id| entry.id == id);
 
-            let slate_matches =
-                tx_slate_id.map_or(
-                    true,
-                    |slate_id| {
-                        entry.tx_slate_id == Some(slate_id)
-                    },
-                );
+            let slate_matches = tx_slate_id.map_or(
+                true,
+                |slate_id| entry.tx_slate_id == Some(slate_id),
+            );
 
             id_matches && slate_matches
-        })
-        .filter_map(|entry| entry.epicbox_tx_id)
-        .collect::<Vec<_>>();
+        });
 
-    matching_ids.sort();
-    matching_ids.dedup();
+    let entry = match entries.next() {
+        Some(entry) => entry,
+        None => return Ok(None),
+    };
 
-    match matching_ids.as_slice() {
-        [id] => Ok(Some(id.clone())),
-
-        [] => Ok(None)
-        /*Err(Error::GenericError(
-            "Transaction has no stored epicboxtxid".to_owned(),
-        ))*/,
-
-        _ => Err(Error::GenericError(
-            "Transaction has conflicting stored epicboxtxids".to_owned(),
-        )),
+    if entries.next().is_some() {
+        return Err(Error::GenericError(
+            "Multiple local transactions matched the supplied transaction identifier"
+                .to_owned(),
+        ));
     }
-}
 
+    let Some(stored) = entry.epicbox_tx_id else {
+        return Ok(None);
+    };
+
+    let epicbox_tx_id = EpicboxTxId::parse(&stored).map_err(|e| {
+        Error::GenericError(format!(
+            "Transaction has invalid stored epicbox_tx_id [{}]: {}",
+            stored,
+            e
+        ))
+    })?;
+
+    Ok(Some(epicbox_tx_id))
+}
 
 /// Cancel a transaction, either via the Epicbox relay or locally.
 pub fn tx_cancel(
