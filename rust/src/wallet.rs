@@ -258,7 +258,7 @@ fn resolve_epicbox_tx_id(
 
     wallet_lock!(wallet, w);
 
-    let mut entries = w
+    let mut matching_ids = w
         .tx_log_iter()
         .filter(|entry| {
             let id_matches =
@@ -270,23 +270,20 @@ fn resolve_epicbox_tx_id(
             );
 
             id_matches && slate_matches
-        });
+        })
+        .filter_map(|entry| entry.epicbox_tx_id);
 
-    let entry = match entries.next() {
-        Some(entry) => entry,
+    let stored = match matching_ids.next() {
+        Some(id) => id,
         None => return Ok(None),
     };
 
-    if entries.next().is_some() {
+    if matching_ids.next().is_some() {
         return Err(Error::GenericError(
-            "Multiple local transactions matched the supplied transaction identifier"
+            "Multiple stored epicbox_tx_ids matched the supplied transaction identifier"
                 .to_owned(),
         ));
     }
-
-    let Some(stored) = entry.epicbox_tx_id else {
-        return Ok(None);
-    };
 
     let epicbox_tx_id = EpicboxTxId::parse(&stored).map_err(|e| {
         Error::GenericError(format!(
@@ -354,14 +351,14 @@ pub fn tx_cancel(
                     keychain_mask.as_ref(),
                     None,
                     Some(epicbox_tx_id),
-                    None,
+                    slate_uuid,
                 ) {
                     Ok(_) => {
                         Ok("cancelled".to_owned())
                     }
                     Err(e) => {
-                        // don't default to traditional cancel on error, could still get signed by receiver
-                        // better to keep things simple here i think
+                        // cancel_tx_epicbox now handles slate_uuid fallback, so this error
+                        // only happens if we can't cancel at all
                         Err(Error::GenericError(e.to_string()))
                     }
                 }
