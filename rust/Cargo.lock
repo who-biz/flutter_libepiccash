@@ -1203,7 +1203,7 @@ dependencies = [
 [[package]]
 name = "epic_api"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "bytes 1.11.0",
  "chrono",
@@ -1244,7 +1244,7 @@ dependencies = [
 [[package]]
 name = "epic_chain"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "bit-vec",
  "bitflags 2.10.0",
@@ -1267,7 +1267,7 @@ dependencies = [
 [[package]]
 name = "epic_core"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1299,7 +1299,7 @@ dependencies = [
 [[package]]
 name = "epic_keychain"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1323,7 +1323,7 @@ dependencies = [
 [[package]]
 name = "epic_p2p"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "bitflags 2.10.0",
  "blake2-rfc",
@@ -1355,7 +1355,7 @@ dependencies = [
 [[package]]
 name = "epic_pool"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -1373,7 +1373,7 @@ dependencies = [
 [[package]]
 name = "epic_store"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "byteorder",
  "croaring",
@@ -1393,7 +1393,7 @@ dependencies = [
 [[package]]
 name = "epic_util"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#c4b9aad1e239715da74f8c110986d67770439e78"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -1416,7 +1416,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_api"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#942c073597720878859fc89d227ed50afc271c1e"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#a45010f792caff5300cd019e90f5274dc4c78bb4"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1439,7 +1439,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_config"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#942c073597720878859fc89d227ed50afc271c1e"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#a45010f792caff5300cd019e90f5274dc4c78bb4"
 dependencies = [
  "dirs 6.0.0",
  "epic_wallet_util",
@@ -1453,7 +1453,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_controller"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#942c073597720878859fc89d227ed50afc271c1e"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#a45010f792caff5300cd019e90f5274dc4c78bb4"
 dependencies = [
  "bytes 1.11.0",
  "chrono",
@@ -1486,7 +1486,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_impls"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#942c073597720878859fc89d227ed50afc271c1e"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#a45010f792caff5300cd019e90f5274dc4c78bb4"
 dependencies = [
  "base64 0.22.1",
  "bitvec",
@@ -1529,7 +1529,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_libwallet"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#942c073597720878859fc89d227ed50afc271c1e"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#a45010f792caff5300cd019e90f5274dc4c78bb4"
 dependencies = [
  "aead",
  "blake2-rfc",
@@ -1562,7 +1562,7 @@ dependencies = [
 [[package]]
 name = "epic_wallet_util"
 version = "4.0.0"
-source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#942c073597720878859fc89d227ed50afc271c1e"
+source = "git+https://github.com/who-biz/epic-wallet?branch=ebox-cancel-txs#a45010f792caff5300cd019e90f5274dc4c78bb4"
 dependencies = [
  "dirs 6.0.0",
  "epic_api",
@@ -4054,7 +4054,7 @@ dependencies = [
 [[package]]
 name = "randomx"
 version = "0.2.0"
-source = "git+https://github.com/who-biz/randomx-rust?branch=cs-fixes#dad5c5f368e7adc1a35a40df70903bf519e9d6bc"
+source = "git+https://github.com/who-biz/randomx-rust?branch=cs-fixes#7b1daec386af3877736e27cfd0becf067d08be30"
 dependencies = [
  "bindgen",
  "byteorder",
