@@ -344,28 +344,44 @@ abstract class LibEpiccash {
     });
   }
 
-  static Future<String> _cancelTransactionWrapper(
+  static Future<String> _cancelEpicboxTransactionWrapper(
     ({
       String wallet,
-      String transactionId,
+      bool methodIsEpicbox,
+      String? epicboxConfig,
+      int? txId,
+      String? txSlateId,
+      String? txEpicboxId,
     }) data,
   ) async {
-    return lib_epiccash.cancelTransaction(
+    return lib_epiccash.cancelEpicboxTransaction(
       data.wallet,
-      data.transactionId,
+      data.methodIsEpicbox,
+      data.epicboxConfig,
+      data.txId,
+      data.txSlateId,
+      data.txEpicboxId,
     );
   }
 
-  /// returns an empty String on success, error message on failure
-  static Future<String> cancelTransaction({
+  /// Cancels a transaction through Epicbox or locally.
+  static Future<String> cancelEpicboxTransaction({
     required String wallet,
-    required String transactionId,
+    required bool methodIsEpicbox,
+    String? epicboxConfig,
+    int? txId,
+    String? txSlateId,
+    String? txEpicboxId,
   }) async {
     return await m.protect(() async {
       try {
-        final result = lib_epiccash.cancelTransaction(
+        final result = lib_epiccash.cancelEpicboxTransaction(
           wallet,
-          transactionId,
+          methodIsEpicbox,
+          epicboxConfig,
+          txId,
+          txSlateId,
+          txEpicboxId,
         );
 
         _checkForError(result);
@@ -681,19 +697,35 @@ abstract class LibEpiccash {
     required String wallet,
     required String epicboxConfig,
   }) {
-    // Stop any existing listener for this wallet before starting a new one
-    stopEpicboxListener(walletId: walletId);
+    final existingPointer = ListenerManager.getPointer(walletId);
+
+    if (existingPointer != null) {
+      final running =
+          lib_epiccash.epicboxListenerIsRunning(existingPointer);
+
+      if (running) {
+        // Keep the currently connected listener.
+        return;
+      }
+
+      // The Rust health check has consumed the completed handle.
+      ListenerManager.removePointer(walletId);
+    }
 
     try {
-      final pointer = lib_epiccash.epicboxListenerStart(wallet, epicboxConfig);
+      final pointer =
+          lib_epiccash.epicboxListenerStart(wallet, epicboxConfig);
+
+      if (pointer == nullptr) {
+        throw Exception("Failed to start Epicbox listener");
+      }
+
       ListenerManager.setPointer(walletId, pointer);
     } catch (e) {
-      // Ensure pointer is removed if start fails
       ListenerManager.removePointer(walletId);
-      throw ("Error starting wallet listener ${e.toString()}");
+      throw Exception("Error starting wallet listener: $e");
     }
   }
-
   /// Stop the epicbox listener for a specific wallet.
   ///
   /// [walletId] - The wallet identifier used when starting the listener

@@ -1,63 +1,69 @@
 use std::sync::Arc;
-use ffi_helpers::{export_task, Task};
-use ffi_helpers::task::CancellationToken;
+use std::sync::Arc as StdArc;
+use std::sync::atomic::AtomicBool;
+
 use epic_util::Mutex;
 use epic_util::secp::SecretKey;
 use epic_wallet_config::{EpicboxConfig, TorConfig};
 use epic_wallet_impls::EpicboxListenChannel;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc as StdArc;
+use ffi_helpers::task::CancellationToken;
+use ffi_helpers::{Task, export_task};
 
 use crate::wallet::Wallet;
 
-/// Listener task.
 #[derive(Debug, Clone)]
 pub struct Listener {
     pub wallet_ptr_str: String,
-    pub epicbox_config: String
+    pub epicbox_config: String,
 }
 
-/// Spawn a listener task.
 impl Task for Listener {
     type Output = usize;
 
-    fn run(&self, cancel_tok: &CancellationToken) -> Result<Self::Output, anyhow::Error> {
-        let wallet_data_str = &self.wallet_ptr_str;
-        let tuple_wallet_data: (i64, Option<SecretKey>) = serde_json::from_str(wallet_data_str).unwrap();
-        let wlt = tuple_wallet_data.0;
-        let sek_key = tuple_wallet_data.1;
+    fn run(
+        &self,
+        cancel_tok: &CancellationToken,
+    ) -> Result<Self::Output, anyhow::Error> {
+        let (wlt, sek_key): (i64, Option<SecretKey>) =
+            serde_json::from_str(&self.wallet_ptr_str)
+                .map_err(|e| anyhow::anyhow!("Invalid wallet handle: {e}"))?;
+
+        let epicbox_conf =
+            serde_json::from_str::<EpicboxConfig>(&self.epicbox_config)
+                .map_err(|e| anyhow::anyhow!("Invalid Epicbox config: {e}"))?;
 
         unsafe {
-            let epicbox_conf = serde_json::from_str::<EpicboxConfig>(&self.epicbox_config.as_str()).unwrap();
-
             crate::ensure_wallet!(wlt, wallet);
 
-            // Only attempt connection if not cancelled
-            if !cancel_tok.cancelled() {
-                let listener = EpicboxListenChannel::new().unwrap();
-
-                let mut reconnections = 0;
-
-                match listener.listen(
-                    wallet.clone(),
-                    Arc::new(Mutex::new(sek_key.clone())),
-                    epicbox_conf.clone(),
-                    &mut reconnections,
-                    // IMPORTANT: Must be true for the listener to process messages.
-                    // When false, the epicbox subscriber loop just sleeps and skips message processing.
-                    StdArc::new(AtomicBool::new(true)),
-                    TorConfig::default(),
-                ) {
-                    Ok(_) => {
-                        // Graceful close (server sent Close message or clean shutdown).
-                        // Do not reconnect - the caller can restart the listener if needed.
-                    }
-                    Err(e) => {
-                        return Err(anyhow::Error::msg(format!("Epicbox listener error: {}", e)));
-                    }
-                }
+            if cancel_tok.cancelled() {
+                return Ok(0);
             }
+
+            let listener = EpicboxListenChannel::new()
+                .map_err(|e| anyhow::anyhow!(
+                    "Could not create Epicbox listener: {e}"
+                ))?;
+
+            let mut reconnections = 0;
+
+            listener
+                .listen(
+                    wallet.clone(),
+                    Arc::new(Mutex::new(sek_key)),
+                    epicbox_conf,
+                    &mut reconnections,
+
+                    // This means "node is ready to process messages."
+                    // It is not the listener cancellation flag.
+                    StdArc::new(AtomicBool::new(true)),
+
+                    TorConfig::default(),
+                )
+                .map_err(|e| anyhow::anyhow!(
+                    "Epicbox listener error: {e}"
+                ))?;
         }
+
         Ok(0)
     }
 }

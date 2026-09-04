@@ -58,6 +58,18 @@ const char *rust_delete_wallet(const char *_wallet, const char *config);
 void *rust_epicbox_listener_start(const char *wallet, const char *epicbox_config);
 
 /**
+ * Cancel a transaction through Epicbox or locally via FFI.
+ *
+ * Optional string arguments use either a null pointer or an empty string for `None`.
+ */
+const char *rust_epicbox_tx_cancel(const char *wallet,
+                                   const char *method_is_epicbox,
+                                   const char *epicbox_config,
+                                   const char *tx_id,
+                                   const char *tx_slate_id,
+                                   const char *epicbox_msg_id);
+
+/**
  * Get chain height via FFI.
  */
 const char *rust_get_chain_height(const char *config);
@@ -88,11 +100,6 @@ const char *rust_recover_from_mnemonic(const char *config,
                                        const char *password,
                                        const char *mnemonic,
                                        const char *name);
-
-/**
- * Cancel a transaction via FFI.
- */
-const char *rust_tx_cancel(const char *wallet, const char *tx_id);
 
 /**
  * Finalize a slate via FFI.

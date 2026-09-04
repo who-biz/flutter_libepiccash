@@ -7,7 +7,7 @@ enum EpicFuncName {
   scanOutputs,
   createTransaction,
   getTransactions,
-  cancelTransaction,
+  cancelEpicboxTransaction,
   getChainHeight,
   getAddressInfo,
   getTransactionFees,
@@ -33,6 +33,27 @@ class EpicTask {
     this.args,
     this.id,
   });
+
+  factory EpicTask.cancelEpicboxTransaction({
+    required String wallet,
+    required bool methodIsEpicbox,
+    String? epicboxConfig,
+    int? txId,
+    String? txSlateId,
+    String? txEpicboxId,
+  }) {
+    return EpicTask(
+      func: EpicFuncName.cancelEpicboxTransaction,
+      args: {
+        'wallet': wallet,
+        'methodIsEpicbox': methodIsEpicbox,
+        'epicboxConfig': epicboxConfig,
+        'txId': txId,
+        'txSlateId': txSlateId,
+        'txEpicboxId': txEpicboxId,
+      },
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {

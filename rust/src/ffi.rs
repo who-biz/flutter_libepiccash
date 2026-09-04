@@ -1,12 +1,9 @@
 use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_char;
 
-use uuid::Uuid;
-
 use epic_wallet_api::{self, Owner};
 use epic_wallet_config::EpicboxConfig;
 use epic_wallet_libwallet::Error;
-use epic_wallet_controller::Error as EpicWalletControllerError;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
@@ -35,12 +32,15 @@ use crate::wallet::delete_wallet;
 use crate::wallet::tx_send_http;
 use crate::wallet::get_chain_height;
 
-use crate::listener::Listener;
-use crate::listener::listener_spawn;
-use crate::listener::listener_cancel;
-use crate::listener::listener_cancelled;
-use crate::listener::listener_handle_destroy;
-use crate::listener::listener_poll;
+use crate::listener::{
+    Listener,
+    listener_cancel,
+    listener_handle_destroy,
+    listener_poll,
+    listener_result_destroy,
+    listener_spawn,
+};
+
 use crate::init_logger;
 
 use ffi_helpers::task::TaskHandle;
@@ -53,36 +53,26 @@ pub unsafe extern "C" fn wallet_init(
     password: *const c_char,
     name: *const c_char
 ) -> *const c_char {
-
-    let result = match _wallet_init(config, mnemonic, password, name) {
-        Ok(created) => {
-            created
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+    match _wallet_init(config, mnemonic, password, name) {
+        Ok(created) => created,
+        Err(e) => ffi_error_string(e),
+    }
 }
 
 /// Get a new mnemonic.
 #[no_mangle]
 pub unsafe extern "C" fn get_mnemonic() -> *const c_char {
-    let result = match _get_mnemonic() {
+    match _get_mnemonic() {
         Ok(phrase) => {
-            phrase
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
+            ffi_string(phrase)
+                .unwrap_or_else(ffi_error_string)
         }
-    };
-    result
+        Err(e) => {
+            ffi_error_string(Error::GenericError(
+                format!("Mnemonic error: {e}")
+            ))
+        }
+    }
 }
 
 /// A helper to initialize a new wallet.
@@ -122,18 +112,9 @@ fn _wallet_init(
         )}
     };
 
-    let mut create_msg = "".to_string();
-    match create_wallet(str_config, phrase, str_password, str_name) {
-        Ok(_) => {
-            create_msg.push_str("");
-        },Err(e) => {
-            return Err(e);
-        }
-    }
-    let s = CString::new(create_msg).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    create_wallet(str_config, phrase, str_password, str_name)?;
+
+    ffi_string(String::new())
 }
 
 /// Open a wallet via FFI.
@@ -143,21 +124,13 @@ pub unsafe extern "C"  fn rust_open_wallet(
     password: *const c_char,
 ) -> *const c_char {
     init_logger();
-    let result = match _open_wallet(
+    match _open_wallet(
         config,
         password
     ) {
-        Ok(wallet) => {
-            wallet
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(wallet) => wallet,
+        Err(e) => ffi_error_string(e),
+    }
 }
 
 /// A helper to open a wallet.
@@ -171,25 +144,18 @@ fn _open_wallet(
     let str_config = c_conf.to_str().unwrap();
     let str_password = c_password.to_str().unwrap();
 
-    let mut result = String::from("");
-    match open_wallet(&str_config, str_password) {
+    let result = match open_wallet(&str_config, str_password) {
         Ok(res) => {
             let wlt = res.0;
             let sek_key = res.1;
             let wallet_int = Box::into_raw(Box::new(wlt)) as i64;
             let wallet_data = (wallet_int, sek_key);
-            let wallet_ptr = serde_json::to_string(&wallet_data).unwrap();
-            result.push_str(&wallet_ptr);
-        }
-        Err(err) => {
-            return Err(err);
-        }
+            serde_json::to_string(&wallet_data)?
+        },
+        Err(err) => return Err(err),
     };
 
-    let s = CString::new(result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    ffi_string(result)
 }
 
 /// Get wallet balances via FFI.
@@ -217,23 +183,15 @@ pub unsafe extern "C"  fn rust_wallet_balances(
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _wallet_balances(
+    match _wallet_balances(
         wallet,
         sek_key,
         refresh,
         minimum_confirmations
     ) {
-        Ok(balances) => {
-            balances
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(balances) => balances,
+        Err(e ) => ffi_error_string(e),
+    }
 }
 
 /// A helper to get wallet balances.
@@ -248,29 +206,18 @@ fn _wallet_balances(
         ">> _wallet_balances called with refresh={refresh}, min_confirmations={min_confirmations}"
     );
 
-    let mut wallet_info_str = String::new();
-
-    // Call get_wallet_info under the hood.
-    match get_wallet_info(wallet, keychain_mask, refresh, min_confirmations) {
+    let wallet_info_str = match get_wallet_info(wallet, keychain_mask, refresh, min_confirmations) {
         Ok(info) => {
-            // Print intermediate data
             println!(">> _wallet_balances got info: {:?}", info);
-
-            // Convert to JSON.
-            let str_wallet_info = serde_json::to_string(&info).unwrap();
-            wallet_info_str.push_str(&str_wallet_info);
+            serde_json::to_string(&info)?
         }
         Err(e) => {
             println!(">> _wallet_balances encountered error: {e}");
             return Err(e);
         }
-    }
+    };
 
-    // Convert final string result into a *const c_char.
-    let s = CString::new(wallet_info_str).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Hand off responsibility to caller.
-    Ok(p)
+    ffi_string(wallet_info_str)
 }
 
 /// Recover a wallet from a mnemonic via FFI.
@@ -282,23 +229,15 @@ pub unsafe extern "C"  fn rust_recover_from_mnemonic(
     name: *const c_char
 ) -> *const c_char {
 
-    let result = match _recover_from_mnemonic(
+    match _recover_from_mnemonic(
         config,
         password,
         mnemonic,
         name
     ) {
-        Ok(recovered) => {
-            recovered
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(recovered) => recovered,
+        Err(e ) => ffi_error_string(e),
+    }
 }
 
 /// A helper to recover a wallet from a mnemonic.
@@ -328,19 +267,9 @@ fn _recover_from_mnemonic(
     let phrase = c_mnemonic.to_str().unwrap();
     let name = c_name.to_str().unwrap();
 
-    let mut recover_response = "".to_string();
-    match recover_from_mnemonic(phrase, str_password, &wallet_config, name) {
-        Ok(_)=> {
-            recover_response.push_str("recovered");
-        },
-        Err(e)=> {
-            return Err(e);
-        }
-    }
-    let s = CString::new(recover_response).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    recover_from_mnemonic(phrase, str_password, &wallet_config, name)?;
+
+    ffi_string("recovered".to_owned())
 }
 
 /// Validate an address via FFI.
@@ -363,23 +292,15 @@ pub unsafe extern "C" fn rust_wallet_scan_outputs(
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _wallet_scan_outputs(
+    match _wallet_scan_outputs(
         wallet,
         sek_key,
         start_height,
         number_of_blocks
     ) {
-        Ok(scan) => {
-            scan
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(scan) => scan,
+        Err(e) => ffi_error_string(e),
+    }
 }
 
 /// A helper to scan outputs.
@@ -394,31 +315,15 @@ fn _wallet_scan_outputs(
         ">> _wallet_scan_outputs called with start_height={start_height}, number_of_blocks={number_of_blocks}"
     );
 
-    let mut scan_result = String::new();
-
     // Call wallet_scan_outputs under the hood.
-    match wallet_scan_outputs(
+    let scan_result = wallet_scan_outputs(
         wallet,
         keychain_mask,
         Some(start_height),
         Some(number_of_blocks)
-    ) {
-        Ok(scan_str) => {
-            // Print intermediate data.
-            println!(">> _wallet_scan_outputs result: {scan_str}");
-            scan_result.push_str(&scan_str);
-        },
-        Err(err) => {
-            println!(">> _wallet_scan_outputs encountered error: {err}");
-            return Err(err);
-        },
-    }
+    )?;
 
-    // Convert final string result into a *const c_char.
-    let s = CString::new(scan_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Hand off responsibility to caller.
-    Ok(p)
+    ffi_string(scan_result)
 }
 
 /// Create a transaction via FFI.
@@ -457,7 +362,7 @@ pub unsafe extern "C" fn rust_create_tx(
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _create_tx(
+    match _create_tx(
         wallet,
         sek_key,
         amount,
@@ -468,18 +373,9 @@ pub unsafe extern "C" fn rust_create_tx(
         note,
         return_slate,
     ) {
-        Ok(slate) => {
-            slate
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
-
+        Ok(slate) => slate,
+        Err(e) => ffi_error_string(e)
+    }
 }
 
 /// A helper to create a transaction.
@@ -494,10 +390,9 @@ fn _create_tx(
     note: &str,
     return_slate: bool,
 ) -> Result<*const c_char, Error> {
-    let mut message = String::from("");
-    match tx_create(
-        &wallet,
-        keychain_mask.clone(),
+    let message = match tx_create(
+        wallet,
+        keychain_mask,
         amount,
         minimum_confirmations,
         false,
@@ -509,19 +404,12 @@ fn _create_tx(
         Ok(slate) => {
             let empty_json = format!(r#"{{"slate_msg": ""}}"#);
             let create_response = (&slate, &empty_json);
-            let str_create_response = serde_json::to_string(&create_response).unwrap();
-            message.push_str(&str_create_response);
+            serde_json::to_string(&create_response)?
         },
-        Err(e) => {
-            message.push_str(&e.to_string());
-            return Err(e);
-        }
-    }
+        Err(e) => return Err(e),
+    };
 
-    let s = CString::new(message).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    ffi_string(message)
 }
 
 /// Get transactions via FFI.
@@ -545,22 +433,14 @@ pub unsafe extern "C" fn rust_txs_get(
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _txs_get(
+    match _txs_get(
         wallet,
         sek_key,
         refresh,
     ) {
-        Ok(txs) => {
-            txs
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(txs) => txs,
+        Err(e) => ffi_error_string(e),
+    }
 }
 
 /// A helper to get transactions.
@@ -569,80 +449,212 @@ fn _txs_get(
     keychain_mask: Option<SecretKey>,
     refresh_from_node: bool,
 ) -> Result<*const c_char, Error> {
-    let mut txs_result = "".to_string();
-    match txs_get(
-        wallet,
-        keychain_mask,
-        refresh_from_node
-    ) {
-        Ok(txs) => {
-            txs_result.push_str(&txs);
-        },
-        Err(err) => {
-            return Err(err);
-        },
-    }
+    let txs = txs_get(wallet, keychain_mask, refresh_from_node)?;
 
-    let s = CString::new(txs_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    ffi_string(txs)
 }
 
-/// Cancel a transaction via FFI.
-#[no_mangle]
-pub unsafe extern "C" fn rust_tx_cancel(
-    wallet: *const c_char,
-    tx_id: *const c_char,
-) -> *const c_char {
-    let wallet_ptr = CStr::from_ptr(wallet);
-    let tx_id = CStr::from_ptr(tx_id);
-    let tx_id = tx_id.to_str().unwrap();
-    let uuid = Uuid::parse_str(tx_id).map_err(|e| EpicWalletControllerError::GenericError(e.to_string())).unwrap();
+fn is_epicbox_tx_id(value: &str) -> bool {
+    value.len() == 32
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
 
-    let wallet_data = wallet_ptr.to_str().unwrap();
-    let tuple_wallet_data: (i64, Option<SecretKey>) = serde_json::from_str(wallet_data).unwrap();
+/// Cancel a transaction through Epicbox or locally via FFI.
+///
+/// Optional string arguments use either a null pointer or an empty string for `None`.
+#[no_mangle]
+pub unsafe extern "C" fn rust_epicbox_tx_cancel(
+    wallet: *const c_char,
+    method_is_epicbox: *const c_char,
+    epicbox_config: *const c_char,
+    tx_id: *const c_char,
+    tx_slate_id: *const c_char,
+    epicbox_tx_id: *const c_char,
+) -> *const c_char {
+    let wallet_data = match required_c_string(wallet, "wallet") {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let method_is_epicbox = match required_c_string(method_is_epicbox, "method_is_epicbox")
+        .and_then(|value| parse_bool_flag(&value, "method_is_epicbox"))
+    {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let epicbox_config = match optional_c_string(epicbox_config, "epicbox_config") {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let tx_id = match optional_c_string(tx_id, "tx_id")
+        .and_then(|value| parse_optional_u32(value, "tx_id"))
+    {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let tx_slate_id = match optional_c_string(tx_slate_id, "tx_slate_id") {
+        Ok(value) => value,
+        Err(e) => return ffi_error_string(e),
+    };
+
+    let epicbox_tx_id =
+        match optional_c_string(epicbox_tx_id, "epicbox_tx_id") {
+            Ok(value) => value,
+            Err(e) => return ffi_error_string(e),
+        };
+
+    if let Some(ref id) = epicbox_tx_id {
+        if !is_epicbox_tx_id(id) {
+            return ffi_error_string(Error::GenericError(
+                "Invalid epicbox_tx_id supplied for epicbox cancellation".to_owned(),
+            ));
+        }
+    }
+
+    let tuple_wallet_data: (i64, Option<SecretKey>) = match serde_json::from_str(&wallet_data) {
+        Ok(value) => value,
+        Err(e) => {
+            return ffi_error_string(Error::GenericError(format!(
+                "Invalid wallet handle: {e}"
+            )));
+        }
+    };
+
     let wlt = tuple_wallet_data.0;
     let sek_key = tuple_wallet_data.1;
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _tx_cancel(
+    match _epicbox_tx_cancel(
         wallet,
         sek_key,
-        uuid,
+        method_is_epicbox,
+        epicbox_config.as_deref(),
+        tx_id,
+        tx_slate_id.as_deref(),
+        epicbox_tx_id,
     ) {
-        Ok(cancelled) => {
-            cancelled
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(cancelled) => cancelled,
+        Err(e) => ffi_error_string(e),
+    }
 }
 
 /// A helper to cancel a transaction.
-fn _tx_cancel(
+fn _epicbox_tx_cancel(
     wallet: &Wallet,
     keychain_mask: Option<SecretKey>,
-    tx_id: Uuid,
-) -> Result<*const c_char, Error>{
-    let mut cancel_msg = "".to_string();
-    match  tx_cancel(wallet, keychain_mask, tx_id) {
-        Ok(_) => {
-            cancel_msg.push_str("");
-        },Err(err) => {
-            return Err(err);
-        }
+    method_is_epicbox: bool,
+    epicbox_config: Option<&str>,
+    tx_id: Option<u32>,
+    tx_slate_id: Option<&str>,
+    epicbox_tx_id: Option<String>,
+) -> Result<*const c_char, Error> {
+    tx_cancel(
+        wallet,
+        keychain_mask,
+        method_is_epicbox,
+        epicbox_config,
+        tx_id,
+        tx_slate_id,
+        epicbox_tx_id,
+    )?;
+
+    ffi_string(String::new())
+}
+
+unsafe fn required_c_string(
+    value: *const c_char,
+    argument_name: &str,
+) -> Result<String, Error> {
+    if value.is_null() {
+        return Err(Error::GenericError(format!(
+            "{argument_name} must not be null"
+        )));
     }
-    let s = CString::new(cancel_msg).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+
+    CStr::from_ptr(value)
+        .to_str()
+        .map(str::to_owned)
+        .map_err(|e| Error::GenericError(format!("Invalid {argument_name}: {e}")))
+}
+
+unsafe fn optional_c_string(
+    value: *const c_char,
+    argument_name: &str,
+) -> Result<Option<String>, Error> {
+    if value.is_null() {
+        return Ok(None);
+    }
+
+    let value = CStr::from_ptr(value)
+        .to_str()
+        .map_err(|e| Error::GenericError(format!("Invalid {argument_name}: {e}")))?
+        .trim();
+
+    if value.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(value.to_owned()))
+    }
+}
+
+fn parse_bool_flag(value: &str, argument_name: &str) -> Result<bool, Error> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "0" | "false" => Ok(false),
+        "1" | "true" => Ok(true),
+        _ => Err(Error::GenericError(format!(
+            "Invalid {argument_name}: expected 0, 1, false, or true"
+        ))),
+    }
+}
+
+fn parse_optional_u32(
+    value: Option<String>,
+    argument_name: &str,
+) -> Result<Option<u32>, Error> {
+    value
+        .map(|value| {
+            value.parse::<u32>().map_err(|e| {
+                Error::GenericError(format!("Invalid {argument_name}: {e}"))
+            })
+        })
+        .transpose()
+}
+
+fn ffi_string(value: String) -> Result<*const c_char, Error> {
+    let value = CString::new(value)
+        .map_err(|e| {
+            Error::GenericError(
+                format!("FFI string contains a NUL byte: {e}")
+            )
+        })?;
+
+    Ok(value.into_raw() as *const c_char)
+}
+
+fn ffi_error_string(error: Error) -> *const c_char {
+    CString::new(format!("Error {error}"))
+        .unwrap_or_else(|_| {
+            CString::new("Error returning FFI error").unwrap()
+        })
+        .into_raw() as *const c_char
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rust_string_free(
+    value: *mut c_char,
+) {
+    if value.is_null() {
+        return;
+    }
+
+    // retake ownership. RAII frees at the end of this scope
+    let _owned = CString::from_raw(value);
 }
 
 /// Get chain height via FFI.
@@ -650,40 +662,26 @@ fn _tx_cancel(
 pub unsafe extern "C" fn rust_get_chain_height(
     config: *const c_char,
 ) -> *const c_char {
-    let result = match _get_chain_height(
+    match _get_chain_height(
         config
     ) {
-        Ok(chain_height) => {
-            chain_height
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(chain_height) => chain_height,
+        Err(e ) => ffi_error_string(e),
+    }
 }
 
 /// A helper to get chain height.
 fn _get_chain_height(config: *const c_char) -> Result<*const c_char, Error> {
     let c_config = unsafe { CStr::from_ptr(config) };
     let str_config = c_config.to_str().unwrap();
-    let mut chain_height = "".to_string();
-    match get_chain_height(&str_config) {
-        Ok(chain_tip) => {
-            chain_height.push_str(&chain_tip.to_string());
-        },
+    let chain_height = match get_chain_height(&str_config) {
+        Ok(chain_tip) => chain_tip.to_string(),
         Err(e) => {
             debug!("CHAIN_HEIGHT_ERROR {}", e.to_string());
             return Err(e);
         },
-    }
-    let s = CString::new(chain_height).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    };
+    ffi_string(chain_height)
 }
 
 /// Delete a wallet via FFI.
@@ -695,40 +693,24 @@ pub unsafe extern "C" fn rust_delete_wallet(
     let c_conf = CStr::from_ptr(config);
     let _config = Config::from_str(c_conf.to_str().unwrap()).unwrap(); // TODO: handle error here.
 
-    let result = match _delete_wallet(
+    match _delete_wallet(
         _config,
     ) {
-        Ok(deleted) => {
-            deleted
-        }, Err(err) => {
-            let error_msg = format!("Error deleting wallet from _delete_wallet in rust_delete_wallet {}", &err.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(deleted) => deleted,
+        Err(err) => ffi_error_string(err),
+    }
 }
 
 /// A helper to delete a wallet.
 fn _delete_wallet(
     config: Config,
 ) -> Result<*const c_char, Error> {
-    let mut delete_result = String::from("");
-    match delete_wallet(config) {
-        Ok(deleted) => {
-            delete_result.push_str(&deleted);
-        },
-        Err(err) => {
-            return Err(err);
-        },
-    }
-    let s = CString::new(delete_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    let delete_result = match delete_wallet(config) {
+        Ok(deleted) => deleted,
+        Err(err) => return Err(err)
+    };
 
+    ffi_string(delete_result)
 }
 
 /// Send a transaction via FFI.
@@ -763,7 +745,7 @@ pub unsafe extern "C" fn rust_tx_send_http(
     let sek_key = tuple_wallet_data.1;
     ensure_wallet!(wlt, wallet);
 
-    let result = match _tx_send_http(
+    match _tx_send_http(
         wallet,
         sek_key,
         strategy_use_all,
@@ -772,17 +754,9 @@ pub unsafe extern "C" fn rust_tx_send_http(
         amount,
         str_address
     ) {
-        Ok(tx_data) => {
-            tx_data
-        }, Err(err ) => {
-            let error_msg = format!("Error {}", &err.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(tx_data) => tx_data,
+        Err(err) => ffi_error_string(err),
+    }
 }
 
 /// A helper to send a transaction.
@@ -795,8 +769,7 @@ fn _tx_send_http(
     amount: u64,
     address: &str
 ) -> Result<*const c_char, Error> {
-    let mut send_result = String::from("");
-    match tx_send_http(
+    let send_result = match tx_send_http(
         wallet,
         keychain_mask,
         selection_strategy_is_use_all,
@@ -808,17 +781,12 @@ fn _tx_send_http(
         Ok(sent) => {
             let empty_json = format!(r#"{{"slate_msg": ""}}"#);
             let create_response = (&sent, &empty_json);
-            let str_create_response = serde_json::to_string(&create_response).unwrap();
-            send_result.push_str(&str_create_response);
+            serde_json::to_string(&create_response)?
         },
-        Err(err) => {
-            return Err(err);
-        },
-    }
-    let s = CString::new(send_result).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+        Err(err) => return Err(err)
+    };
+
+    ffi_string(send_result)
 }
 
 /// Get a wallet address via FFI.
@@ -840,23 +808,16 @@ pub unsafe extern "C" fn rust_get_wallet_address(
     let sek_key = tuple_wallet_data.1;
 
     ensure_wallet!(wlt, wallet);
-    let result = match _get_wallet_address(
+
+    match _get_wallet_address(
         wallet,
         sek_key,
         index,
         epicbox_config
     ) {
-        Ok(address) => {
-            address
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(address) => address,
+        Err(e ) => ffi_error_string(e),
+    }
 }
 
 /// A helper to get a wallet address.
@@ -867,10 +828,8 @@ fn _get_wallet_address(
     epicbox_config: &str
 ) -> Result<*const c_char, Error> {
     let address = get_wallet_address(&wallet, keychain_mask, index, epicbox_config);
-    let s = CString::new(address).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s
-    Ok(p)
+
+    ffi_string(address)
 }
 
 /// Get a wallet address.
@@ -888,23 +847,21 @@ pub fn get_wallet_address(
     format!("{}@{}", address.public_key, epicbox_conf.epicbox_domain.as_deref().unwrap_or(""))
 }
 
-/// Validate an address via FFI.
 #[no_mangle]
 pub unsafe extern "C" fn rust_validate_address(
     address: *const c_char,
 ) -> *const c_char {
-    let address = unsafe { CStr::from_ptr(address) };
+    let address = CStr::from_ptr(address);
     let str_address = address.to_str().unwrap();
-    let validate = validate_address(str_address);
-    let return_value = match validate {
-        true => 1,
-        false => 0
+
+    let return_value = if validate_address(str_address) {
+        1
+    } else {
+        0
     };
 
-    let s = CString::new(return_value.to_string()).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    p
+    ffi_string(return_value.to_string())
+        .unwrap_or_else(ffi_error_string)
 }
 
 /// Validate an address.
@@ -929,23 +886,15 @@ pub unsafe extern "C" fn rust_get_tx_fees(
 
     ensure_wallet!(wlt, wallet);
 
-    let result = match _get_tx_fees(
+    match _get_tx_fees(
         &wallet,
         sek_key,
         amount,
         minimum_confirmations,
     ) {
-        Ok(fees) => {
-            fees
-        }, Err(e ) => {
-            let error_msg = format!("Error {}", &e.to_string());
-            let error_msg_ptr = CString::new(error_msg).unwrap();
-            let ptr = error_msg_ptr.as_ptr();
-            std::mem::forget(error_msg_ptr);
-            ptr
-        }
-    };
-    result
+        Ok(fees) => fees,
+        Err(e ) => ffi_error_string(e),
+    }
 }
 
 /// A helper to get transaction fees.
@@ -955,18 +904,12 @@ fn _get_tx_fees(
     amount: u64,
     minimum_confirmations: u64,
 ) -> Result<*const c_char, Error> {
-    let mut fees_data = "".to_string();
-    match tx_strategies(wallet, keychain_mask, amount, minimum_confirmations) {
-        Ok(fees) => {
-            fees_data.push_str(&fees);
-        }, Err(e) => {
-            return Err(e);
-        }
-    }
-    let s = CString::new(fees_data).unwrap();
-    let p = s.as_ptr();
-    std::mem::forget(s); // Give up the responsibility of cleaning up/freeing s.
-    Ok(p)
+    let fees_data = match tx_strategies(wallet, keychain_mask, amount, minimum_confirmations) {
+        Ok(fees) => fees,
+        Err(e) => return Err(e)
+    };
+
+    ffi_string(fees_data)
 }
 
 /// Start a listener via FFI.
@@ -975,78 +918,78 @@ pub unsafe extern "C" fn rust_epicbox_listener_start(
     wallet: *const c_char,
     epicbox_config: *const c_char,
 ) -> *mut c_void {
-    let wallet_ptr = CStr::from_ptr(wallet);
-    let epicbox_config = CStr::from_ptr(epicbox_config);
-    let epicbox_config = epicbox_config.to_str().unwrap();
+    if wallet.is_null() || epicbox_config.is_null() {
+        return std::ptr::null_mut();
+    }
 
-    let wallet_data = wallet_ptr.to_str().unwrap();
-    // let tuple_wallet_data: (i64, Option<SecretKey>) = serde_json::from_str(wallet_data).unwrap();
-    let listen = Listener {
-        wallet_ptr_str: wallet_data.to_string(),
-        epicbox_config: epicbox_config.parse().unwrap()
+    let wallet_data = match CStr::from_ptr(wallet).to_str() {
+        Ok(value) => value,
+        Err(_) => return std::ptr::null_mut(),
     };
 
-    let handler = listener_spawn(&listen);
-    let handler_value = handler.read();
-    let boxed_handler = Box::new(handler_value);
-    Box::into_raw(boxed_handler) as *mut _
+    let epicbox_config = match CStr::from_ptr(epicbox_config).to_str() {
+        Ok(value) => value,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let listener = Listener {
+        wallet_ptr_str: wallet_data.to_owned(),
+        epicbox_config: epicbox_config.to_owned(),
+    };
+
+    listener_spawn(&listener).cast::<c_void>()
 }
 
-/// Cancel and destroy a listener via FFI.
-/// This cancels the listener task and frees the associated handle memory.
+
+/// Request cancellation without blocking the FFI caller.
+///
+/// The current Listener task does not yet propagate cancellation into the
+/// blocking EpicboxListenChannel::listen() call, so listener_wait() must not
+/// be used here.
 #[no_mangle]
-pub unsafe extern "C" fn _listener_cancel(handler: *mut c_void) -> *const c_char {
-    // Validate handler is not null
+pub unsafe extern "C" fn _listener_cancel(
+    handler: *mut c_void,
+) -> *const c_char {
     if handler.is_null() {
-        let error_msg = CString::new("false").unwrap();
-        let ptr = error_msg.as_ptr();
-        std::mem::forget(error_msg);
-        return ptr;
+        return ffi_string("false".to_owned())
+            .unwrap_or_else(ffi_error_string);
     }
 
-    let handle = handler as *mut TaskHandle<usize>;
+    let handle = handler.cast::<TaskHandle<usize>>();
 
-    // Request cancellation of the listener task
     listener_cancel(handle);
-    let was_cancelled = listener_cancelled(handle);
 
-    // Destroy the handle to free resources
-    // Note: listener_handle_destroy takes ownership and frees the memory,
-    // so we must NOT also call Box::from_raw (that would be a double-free)
+    // Frees the FFI TaskHandle without waiting indefinitely for the
+    // blocking websocket listener.
     listener_handle_destroy(handle);
 
-    let error_msg = format!("{}", was_cancelled);
-    let error_msg_ptr = CString::new(error_msg).unwrap();
-    let ptr = error_msg_ptr.as_ptr();
-    std::mem::forget(error_msg_ptr);
-    ptr
+    ffi_string("true".to_owned())
+        .unwrap_or_else(ffi_error_string)
 }
 
-/// Check if the listener is still running via FFI.
-/// Returns "true" if the listener is alive (task not completed), "false" if it has stopped.
-/// Returns "false" if the handler is null.
+/// Check whether the listener task has completed.
 #[no_mangle]
-pub unsafe extern "C" fn _listener_is_running(handler: *mut c_void) -> *const c_char {
-    // Validate handler is not null
+pub unsafe extern "C" fn _listener_is_running(
+    handler: *mut c_void,
+) -> *const c_char {
     if handler.is_null() {
-        let result = CString::new("false").unwrap();
-        let ptr = result.as_ptr();
-        std::mem::forget(result);
-        return ptr;
+        return ffi_string("false".to_owned())
+            .unwrap_or_else(ffi_error_string);
     }
 
-    let handle = handler as *mut TaskHandle<usize>;
+    let handle = handler.cast::<TaskHandle<usize>>();
+    let result = listener_poll(handle);
 
-    // Poll the task to check if it's still running
-    // listener_poll returns a null pointer if the task is still running,
-    // or a non-null pointer to the result if the task has completed
-    let poll_result = listener_poll(handle);
-    let is_running = poll_result.is_null();
+    if result.is_null() {
+        return ffi_string("true".to_owned())
+            .unwrap_or_else(ffi_error_string);
+    }
 
-    let result = CString::new(if is_running { "true" } else { "false" }).unwrap();
-    let ptr = result.as_ptr();
-    std::mem::forget(result);
-    ptr
+    listener_result_destroy(result);
+    listener_handle_destroy(handle);
+
+    ffi_string("false".to_owned())
+        .unwrap_or_else(ffi_error_string)
 }
 
 /// Receive a slate via FFI.
@@ -1069,12 +1012,7 @@ pub unsafe extern "C" fn rust_tx_receive(
 
     match _tx_receive(wallet, sek_key, slate_str) {
         Ok(ptr) => ptr,
-        Err(e) => {
-            let err = CString::new(format!("Error {}", e)).unwrap();
-            let p = err.as_ptr();
-            std::mem::forget(err);
-            p
-        }
+        Err(e) => ffi_error_string(e)
     }
 }
 
@@ -1084,24 +1022,17 @@ fn _tx_receive(
     keychain_mask: Option<SecretKey>,
     slate_json: &str,
 ) -> Result<*const c_char, Error> {
-    let mut out = String::new();
-
-    match tx_receive(wallet, keychain_mask, slate_json, None) {
+    let out = match tx_receive(wallet, keychain_mask, slate_json, None) {
         Ok(processed_slate) => {
             // Keep the outer API uniform with (<slate>, {"slate_msg":""}).
             let empty_json = r#"{"slate_msg": ""}"#;
             let response_tuple = (&processed_slate, &empty_json);
-            out.push_str(&serde_json::to_string(&response_tuple).unwrap());
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+            serde_json::to_string(&response_tuple)?
+        },
+        Err(e) => return Err(e),
+    };
 
-    let c_out = CString::new(out).unwrap();
-    let p = c_out.as_ptr();
-    std::mem::forget(c_out);
-    Ok(p)
+    ffi_string(out)
 }
 
 /// Finalize a slate via FFI.
@@ -1123,13 +1054,8 @@ pub unsafe extern "C" fn rust_tx_finalize(
     ensure_wallet!(wlt, wallet);
 
     match _tx_finalize(wallet, sek_key, slate_str) {
-        Ok(ptr) => ptr,
-        Err(e) => {
-            let err = CString::new(format!("Error {}", e)).unwrap();
-            let p = err.as_ptr();
-            std::mem::forget(err);
-            p
-        }
+        Ok(finalize) => finalize,
+        Err(e) => ffi_error_string(e),
     }
 }
 
@@ -1139,24 +1065,18 @@ fn _tx_finalize(
     keychain_mask: Option<SecretKey>,
     slate_json: &str,
 ) -> Result<*const c_char, Error> {
-    let mut out = String::new();
 
-    match tx_finalize(wallet, keychain_mask, slate_json) {
+    let finalized_result = match tx_finalize(wallet, keychain_mask, slate_json) {
         Ok(finalized_slate) => {
             // Same tuple shape as elsewhere.
             let empty_json = r#"{"slate_msg": ""}"#;
             let response_tuple = (&finalized_slate, &empty_json);
-            out.push_str(&serde_json::to_string(&response_tuple).unwrap());
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+            serde_json::to_string(&response_tuple)?
+        },
+        Err(e) => return Err(e),
+    };
 
-    let c_out = CString::new(out).unwrap();
-    let p = c_out.as_ptr();
-    std::mem::forget(c_out);
-    Ok(p)
+    ffi_string(finalized_result)
 }
 
 #[cfg(test)]
@@ -1215,24 +1135,18 @@ mod mnemonic_tests {
     fn test_get_mnemonic_ffi() {
         unsafe {
             match _get_mnemonic() {
-                Ok(c_str_ptr) => {
-                    // Convert C string pointer back to Rust string.
-                    let c_str = CStr::from_ptr(c_str_ptr);
-                    let phrase = c_str.to_str().expect("Invalid UTF-8 in mnemonic");
+                Ok(phrase) => {
+                    assert!(!phrase.is_empty());
 
-                    // Verify the mnemonic is valid.
-                    assert!(!phrase.is_empty(), "Mnemonic phrase should not be empty");
+                    let words: Vec<&str> =
+                        phrase.split_whitespace().collect();
 
-                    let words: Vec<&str> = phrase.split_whitespace().collect();
                     assert_eq!(words.len(), 24, "Mnemonic should contain 24 words");
 
-                    println!("Successfully generated FFI mnemonic: {}", phrase);
-
-                    // Clean up the C string (since we're in a test).
-                    let _ = CString::from_raw(c_str_ptr as *mut i8);
-                },
+                    println!("Successfully generated mnemonic phrase: {}", phrase);
+                }
                 Err(e) => {
-                    panic!("Failed to generate FFI mnemonic: {:?}", e);
+                    panic!("Failed to generate mnemonic: {:?}", e);
                 }
             }
         }
@@ -1284,3 +1198,4 @@ mod mnemonic_tests {
         }
     }
 }
+

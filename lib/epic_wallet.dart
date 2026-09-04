@@ -57,9 +57,19 @@ class EpicWallet {
   bool isClosed() => _walletHandle == null;
 
   Future<void> startListener() async {
-    await stopListener();
+    if (_listenerPointerAddress != null) {
+      final running = await isEpicboxListenerRunning();
 
-    _listenerPointerAddress = await _worker.runTask<int>(
+      if (running) {
+        // Do not replace a healthy listener.
+        return;
+      }
+
+      // isEpicboxListenerRunning() clears _listenerPointerAddress
+      // when the Rust task has finished.
+    }
+
+    final pointerAddress = await _worker.runTask<int>(
       EpicTask(
         func: EpicFuncName.startEpicboxListener,
         args: {
@@ -68,6 +78,14 @@ class EpicWallet {
         },
       ),
     );
+
+    if (pointerAddress == 0) {
+      throw EpicWalletException(
+        'Failed to start Epicbox listener: native listener returned null',
+      );
+    }
+
+    _listenerPointerAddress = pointerAddress;
   }
 
   Future<void> stopListener() async {
@@ -369,7 +387,23 @@ class EpicWallet {
 
     checkForError(txListJson);
 
+    // diagnostic test 
+    print("EPIC RAW getTransactions JSON: $txListJson");
+
     final txList = jsonDecode(txListJson) as List<dynamic>;
+
+
+    for (final tx in txList) {
+      print(
+        "EPIC RAW TX "
+        "id=${tx['id']} "
+        "tx_slate_id=${tx['tx_slate_id']} "
+        "tx_epicbox_id=${tx['tx_epicbox_id']} "
+        "epicbox_tx_id=${tx['epicbox_tx_id']} "
+        "epicboxtxid=${tx['epicboxtxid']}",
+      );
+    }
+
     return txList.map((tx) => Transaction.fromJson(tx)).toList();
   }
 
@@ -400,6 +434,14 @@ class EpicWallet {
     String note = "",
     bool returnSlate = false,
   }) async {
+    // Epicbox transactions require the persistent listener so that
+    // the wallet can receive the receiver's response.
+    //
+    // Slate/slatepack mode does not use Epicbox.
+    if (!returnSlate) {
+      await startListener();
+    }
+
     final result = await _worker.runTask<String>(
       EpicTask(
         func: EpicFuncName.createTransaction,
@@ -443,16 +485,20 @@ class EpicWallet {
     return slate.toRecord();
   }
 
-  Future<String> cancelTransaction({
-    required String transactionId,
+  Future<String> cancelEpicboxTransaction({
+    required bool methodIsEpicbox,
+    int? txId,
+    String? txSlateId,
+    String? txEpicboxId,
   }) async {
     final result = await _worker.runTask<String>(
-      EpicTask(
-        func: EpicFuncName.cancelTransaction,
-        args: {
-          "wallet": _getWalletHandle(),
-          "transactionId": transactionId,
-        },
+      EpicTask.cancelEpicboxTransaction(
+        wallet: _getWalletHandle(),
+        methodIsEpicbox: methodIsEpicbox,
+        epicboxConfig: methodIsEpicbox ? _epicboxConfig : null,
+        txId: txId,
+        txSlateId: txSlateId,
+        txEpicboxId: txEpicboxId,
       ),
     );
 
